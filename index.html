@@ -565,6 +565,39 @@
                 <option value="cell_pair">逐格左右并列</option>
               </select>
             </div>
+
+            <div>
+              <label for="selectNoteFontScale" class="block text-[11px] text-stone-600 mb-0.5">小字字号（独立缩放）</label>
+              <select id="selectNoteFontScale" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="60">特小 60%</option>
+                <option value="70">很小 70%</option>
+                <option value="80">偏小 80%</option>
+                <option value="90">略小 90%</option>
+                <option value="100" selected>标准 100%</option>
+                <option value="110">略大 110%</option>
+                <option value="120">偏大 120%</option>
+                <option value="130">很大 130%</option>
+                <option value="140">特大 140%</option>
+                <option value="150">极大 150%</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectNoteChars" class="block text-[11px] text-stone-600 mb-0.5">小字每行字数</label>
+              <select id="selectNoteChars" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="1">单行大字注文（每行1字）</option>
+                <option value="2" selected>标准双行（每行2字）</option>
+                <option value="3">三行密注（每行3字）</option>
+                <option value="4">四行密注（每行4字）</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectNoteFontFamily" class="block text-[11px] text-stone-600 mb-0.5">小字专用字体</label>
+              <select id="selectNoteFontFamily" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="" selected>跟随正文字体</option>
+              </select>
+            </div>
           </div>
 
           <div class="pt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-stone-700 border-t border-stone-200/80">
@@ -580,6 +613,22 @@
             <label class="inline-flex items-center gap-1.5 cursor-pointer">
               <input id="chkShowVolumeHeader" type="checkbox" checked class="accent-amber-800 rounded" /><span>卷端题名</span>
             </label>
+          </div>
+
+          <div class="pt-2.5 border-t border-stone-200/80">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[11px] font-semibold text-stone-700">🎨 书叶各部分字体颜色（默认跟随纸色主题）</span>
+              <button id="btnResetColors" type="button" class="text-[11px] px-2 py-0.5 rounded bg-stone-200 hover:bg-stone-300 text-stone-700 font-medium transition">恢复默认配色</button>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-1.5 text-[11px]">
+              <label class="flex items-center gap-1.5 cursor-pointer"><input id="inputColorText" type="color" value="#1e1815" class="w-7 h-6 rounded border border-stone-300 cursor-pointer bg-white p-0.5" /><span class="text-stone-600">正文文字</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input id="inputColorNote" type="color" value="#1e1815" class="w-7 h-6 rounded border border-stone-300 cursor-pointer bg-white p-0.5" /><span class="text-stone-600">夹注小字</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input id="inputColorMeipi" type="color" value="#b92b27" class="w-7 h-6 rounded border border-stone-300 cursor-pointer bg-white p-0.5" /><span class="text-stone-600">天头眉批</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input id="inputColorFrame" type="color" value="#1e1815" class="w-7 h-6 rounded border border-stone-300 cursor-pointer bg-white p-0.5" /><span class="text-stone-600">版框</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input id="inputColorRule" type="color" value="#1e1815" class="w-7 h-6 rounded border border-stone-300 cursor-pointer bg-white p-0.5" /><span class="text-stone-600">界行</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input id="inputColorMouth" type="color" value="#1e1815" class="w-7 h-6 rounded border border-stone-300 cursor-pointer bg-white p-0.5" /><span class="text-stone-600">版心/鱼尾</span></label>
+              <label class="flex items-center gap-1.5 cursor-pointer"><input id="inputColorEar" type="color" value="#1e1815" class="w-7 h-6 rounded border border-stone-300 cursor-pointer bg-white p-0.5" /><span class="text-stone-600">书耳</span></label>
+            </div>
           </div>
         </div>
       </div>
@@ -1127,6 +1176,8 @@
       paper: 'paper-bamboo',
       judou: 'vermilion_side',
       noteFlow: 'column_split',
+      textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '',
+      noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '',
       showEar: true,
       showProperLine: true,
       showSeal: true,
@@ -1306,25 +1357,32 @@
               smallItems.push({ char: sc, proper: sProper, bookTitle: sBook, judou: '' });
             }
             let ptr = 0;
+            const notePerRow = Math.min(4, Math.max(1, Number(state.noteCharsPerRow) || 2));
+            const makeDualCell = (items) => {
+              const filled = [];
+              for (let k = 0; k < notePerRow; k++) filled.push(items[k] || { char: '　', judou: '' });
+              if (notePerRow === 2) {
+                return { type: 'dual', rightChar: filled[0].char, leftChar: filled[1].char, rightProper: filled[0].proper, leftProper: filled[1].proper, rightBook: filled[0].bookTitle, leftBook: filled[1].bookTitle, rightJudou: filled[0].judou, leftJudou: filled[1].judou };
+              }
+              return { type: 'dual', dualChars: filled.map((it) => ({ char: it.char, proper: it.proper, bookTitle: it.bookTitle, judou: it.judou })) };
+            };
             while (ptr < smallItems.length) {
               ensureCellSpace();
               const availInCol = rows - currentCol.cells.length;
-              const segCells = Math.min(availInCol, Math.ceil((smallItems.length - ptr) / 2));
+              const segCells = Math.min(availInCol, Math.ceil((smallItems.length - ptr) / notePerRow));
               if (state.noteFlow === 'column_split') {
-                const chunk = smallItems.slice(ptr, ptr + segCells * 2);
-                const rightCount = Math.ceil(chunk.length / 2);
+                const chunk = smallItems.slice(ptr, ptr + segCells * notePerRow);
+                const perSubCol = Math.ceil(chunk.length / notePerRow);
                 for (let r = 0; r < segCells; r++) {
-                  const rItem = chunk[r] || { char: '　', judou: '' };
-                  const lItem = chunk[rightCount + r] || { char: '　', judou: '' };
-                  currentCol.cells.push({ type: 'dual', rightChar: rItem.char, leftChar: lItem.char, rightProper: rItem.proper, leftProper: lItem.proper, rightBook: rItem.bookTitle, leftBook: lItem.bookTitle, rightJudou: rItem.judou, leftJudou: lItem.judou });
+                  const rowItems = [];
+                  for (let k = 0; k < notePerRow; k++) rowItems.push(chunk[k * perSubCol + r] || { char: '　', judou: '' });
+                  currentCol.cells.push(makeDualCell(rowItems));
                 }
-                ptr += segCells * 2;
+                ptr += segCells * notePerRow;
               } else {
                 for (let r = 0; r < segCells; r++) {
-                  const rItem = smallItems[ptr] || { char: '　', judou: '' };
-                  const lItem = smallItems[ptr + 1] || { char: '　', judou: '' };
-                  currentCol.cells.push({ type: 'dual', rightChar: rItem.char, leftChar: lItem.char, rightProper: rItem.proper, leftProper: lItem.proper, rightBook: rItem.bookTitle, leftBook: lItem.bookTitle, rightJudou: rItem.judou, leftJudou: lItem.judou });
-                  ptr += 2;
+                  currentCol.cells.push(makeDualCell(smallItems.slice(ptr, ptr + notePerRow)));
+                  ptr += notePerRow;
                 }
               }
             }
@@ -1333,21 +1391,21 @@
 
           if ('。！？；'.includes(ch)) {
             if (!hidePunct) {
-              if (inlinePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '。', isPunctCell: true }); }
-              else if (currentCol.cells.length > 0) {
-                const prev = currentCol.cells[currentCol.cells.length - 1];
-                if (prev.type === 'main') prev.judou = '。'; else if (prev.type === 'dual') prev.leftJudou = '。';
-              }
+                if (inlinePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '。', isPunctCell: true }); }
+                else if (currentCol.cells.length > 0) {
+                  const prev = currentCol.cells[currentCol.cells.length - 1];
+                  if (prev.type === 'main') prev.judou = '。'; else if (prev.type === 'dual') { if (prev.dualChars) { const lastN = prev.dualChars[prev.dualChars.length - 1]; if (lastN) lastN.judou = '。'; } else prev.leftJudou = '。'; }
+                }
             }
             i++; continue;
           }
           if ('，、：'.includes(ch)) {
             if (!hidePunct) {
-              if (inlinePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '、', isPunctCell: true }); }
-              else if (currentCol.cells.length > 0) {
-                const prev = currentCol.cells[currentCol.cells.length - 1];
-                if (prev.type === 'main') prev.judou = '、'; else if (prev.type === 'dual') prev.leftJudou = '、';
-              }
+                if (inlinePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '、', isPunctCell: true }); }
+                else if (currentCol.cells.length > 0) {
+                  const prev = currentCol.cells[currentCol.cells.length - 1];
+                  if (prev.type === 'main') prev.judou = '、'; else if (prev.type === 'dual') { if (prev.dualChars) { const lastD = prev.dualChars[prev.dualChars.length - 1]; if (lastD) lastD.judou = '、'; } else prev.leftJudou = '、'; }
+                }
             }
             i++; continue;
           }
@@ -1381,9 +1439,35 @@
       if (state.currentLeafIdx >= leaves.length) state.currentLeafIdx = Math.max(0, leaves.length - 1);
     }
 
-    function buildFishtailSvg(type, isBottom, isIndigo) {
+    // 计算书叶各部分的有效颜色（未自定义时跟随纸色主题）
+    function getEffectiveColors() {
+      const isIndigo = state.paper === 'paper-indigo';
+      const themeInk = isIndigo ? '#e6c675' : '#1e1815';
+      const themeRed = isIndigo ? '#ff7b72' : '#b92b27';
+      return {
+        ink: state.textColor || themeInk,
+        note: state.noteColor || state.textColor || themeInk,
+        meipi: state.meipiColor || themeRed,
+        red: themeRed,
+        frame: state.frameColor || themeInk,
+        rule: state.ruleColor || (state.gridRule === 'zhusi' ? (isIndigo ? 'rgba(230,198,117,0.45)' : 'rgba(185,43,39,0.55)') : (isIndigo ? 'rgba(230,198,117,0.35)' : 'rgba(30,24,21,0.55)')),
+        mouth: state.mouthColor || state.textColor || themeInk,
+        ear: state.earColor || state.textColor || themeInk
+      };
+    }
+
+    // 双行小字单元格归一化：兼容旧版 rightChar/leftChar 与新版 dualChars（每行 N 字）
+    function dualCellItems(cell) {
+      if (cell.dualChars) return cell.dualChars;
+      return [
+        { char: cell.rightChar, proper: cell.rightProper, bookTitle: cell.rightBook, judou: cell.rightJudou },
+        { char: cell.leftChar, proper: cell.leftProper, bookTitle: cell.leftBook, judou: cell.leftJudou }
+      ];
+    }
+
+    function buildFishtailSvg(type, isBottom, isIndigo, fillOverride) {
       if (type === 'none') return '';
-      const fill = isIndigo ? '#e6c675' : '#1e1815';
+      const fill = fillOverride || (isIndigo ? '#e6c675' : '#1e1815');
       if (type === 'hollow_floral') {
         if (!isBottom) return `<svg viewBox="0 0 40 28" class="w-full h-6"><line x1="2" y1="2" x2="38" y2="2" stroke="${fill}" stroke-width="2"/><line x1="2" y1="6" x2="38" y2="6" stroke="${fill}" stroke-width="1"/><polygon points="2,9 38,9 38,26 20,16 2,26" fill="none" stroke="${fill}" stroke-width="1.8"/><circle cx="20" cy="12.5" r="2" fill="${fill}"/></svg>`;
         return `<svg viewBox="0 0 40 28" class="w-full h-6"><polygon points="2,2 20,12 38,2 38,19 2,19" fill="none" stroke="${fill}" stroke-width="1.8"/><line x1="2" y1="22" x2="38" y2="22" stroke="${fill}" stroke-width="1"/><line x1="2" y1="26" x2="38" y2="26" stroke="${fill}" stroke-width="2"/></svg>`;
@@ -1443,16 +1527,19 @@
 
     function renderHalfLeafColsHtml(colsArray, isRightHalf, leafObj) {
       const isIndigo = state.paper === 'paper-indigo';
-      const ruleColor = state.gridRule === 'zhusi' ? (isIndigo ? 'rgba(230, 198, 117, 0.45)' : 'rgba(180, 42, 38, 0.55)') : state.gridRule === 'wusi' ? (isIndigo ? 'rgba(230, 198, 117, 0.35)' : 'rgba(35, 25, 20, 0.55)') : 'transparent';
+      const colors = getEffectiveColors();
+      const ruleColor = state.ruleColor || (state.gridRule === 'zhusi' ? (isIndigo ? 'rgba(230, 198, 117, 0.45)' : 'rgba(180, 42, 38, 0.55)') : state.gridRule === 'wusi' ? (isIndigo ? 'rgba(230, 198, 117, 0.35)' : 'rgba(35, 25, 20, 0.55)') : 'transparent');
       const judouColor = state.judou.startsWith('vermilion') ? (isIndigo ? '#ff7b72' : '#c92a2a') : (isIndigo ? '#e6c675' : '#1e1815');
       const properLineColor = isIndigo ? '#e6c675' : '#9e2a2b';
       const fontScale = (Number(state.fontScale) || 100) / 100;
       const fontWeight = state.fontWeight || '600';
+      const noteScaleRatio = (Number(state.noteFontScale) || 100) / 100;
+      const noteFontCss = state.noteFontFamily ? `font-family:${state.noteFontFamily};` : '';
 
       let colsHtml = '';
       colsArray.forEach((colObj, colIdx) => {
         const borderLeftStyle = colIdx < colsArray.length - 1 && state.gridRule !== 'none' ? `border-left: 1px solid ${ruleColor};` : '';
-        const meipiHtml = colObj.meipi ? `<div class="absolute -top-11 left-1/2 -translate-x-1/2 font-guji text-[10px] leading-tight text-[#b92b27] tracking-tighter select-none" style="writing-mode: vertical-rl; max-height: 40px; overflow: hidden;" title="${colObj.meipi}">${colObj.meipi}</div>` : '';
+        const meipiHtml = colObj.meipi ? `<div class="absolute -top-11 left-1/2 -translate-x-1/2 font-guji text-[10px] leading-tight tracking-tighter select-none" style="writing-mode: vertical-rl; max-height: 40px; overflow: hidden; color:${colors.meipi};" title="${colObj.meipi}">${colObj.meipi}</div>` : '';
         let cellsHtml = '';
         colObj.cells.forEach((cell) => {
           if (cell.type === 'empty') {
@@ -1466,13 +1553,16 @@
             const cellWeight = cell.isHeader ? '900' : fontWeight;
             const judouBadge = cell.judou ? `<span class="absolute right-[1px] bottom-[-2px] font-bold leading-none pointer-events-none select-none" style="color:${judouColor}; font-size:0.68em;">${cell.judou}</span>` : '';
             const charDisplay = cell.isInkBlock ? `<span class="inline-block w-[0.75em] h-[0.78em] bg-current rounded-[1px]"></span>` : cell.isPunctCell ? `<span style="color:${judouColor};">${cell.char}</span>` : cell.char;
-            cellsHtml += `<div class="relative w-full flex-1 flex items-center justify-center font-guji ${bookClass}" style="${properStyle} font-weight:${cellWeight}; transform: scale(${cellScale});"><span class="leading-none">${charDisplay}</span>${judouBadge}</div>`;
+            cellsHtml += `<div class="relative w-full flex-1 flex items-center justify-center font-guji ${bookClass}" style="color:${colors.ink}; ${properStyle} font-weight:${cellWeight}; transform: scale(${cellScale});"><span class="leading-none">${charDisplay}</span>${judouBadge}</div>`;
           } else if (cell.type === 'dual') {
-            const rJudou = cell.rightJudou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${cell.rightJudou}</span>` : '';
-            const lJudou = cell.leftJudou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${cell.leftJudou}</span>` : '';
-            const rProper = state.showProperLine && cell.rightProper ? `border-left: 1px solid ${properLineColor};` : '';
-            const lProper = state.showProperLine && cell.leftProper ? `border-left: 1px solid ${properLineColor};` : '';
-            cellsHtml += `<div class="relative w-full flex-1 flex flex-row-reverse items-center justify-around font-guji px-[1px]" style="font-weight:${fontWeight};"><div class="relative w-1/2 h-full flex items-center justify-center text-[0.56em] leading-none" style="${rProper}"><span>${cell.rightChar}</span>${rJudou}</div><div class="relative w-1/2 h-full flex items-center justify-center text-[0.56em] leading-none" style="${lProper}"><span>${cell.leftChar}</span>${lJudou}</div></div>`;
+            const items = dualCellItems(cell);
+            const noteFontPx = `${(0.56 * noteScaleRatio).toFixed(3)}em`;
+            const subsHtml = items.map((item) => {
+              const iJudou = item.judou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${item.judou}</span>` : '';
+              const iProper = state.showProperLine && item.proper ? `border-left: 1px solid ${properLineColor};` : '';
+              return `<div class="relative flex-1 h-full flex items-center justify-center leading-none" style="font-size:${noteFontPx}; ${iProper}"><span>${item.char}</span>${iJudou}</div>`;
+            }).join('');
+            cellsHtml += `<div class="relative w-full flex-1 flex flex-row-reverse items-center justify-around font-guji px-[1px]" style="font-weight:${fontWeight}; color:${colors.note}; ${noteFontCss}">${subsHtml}</div>`;
           }
         });
         let sealHtml = '';
@@ -1490,7 +1580,8 @@
       const cols = Number(state.colsPerHalf) || 9;
       const rows = Number(state.rowsPerCol) || 18;
       const isIndigo = state.paper === 'paper-indigo';
-      const frameColor = isIndigo ? '#e6c675' : '#1d1612';
+      const colors = getEffectiveColors();
+      const frameColor = state.frameColor || (isIndigo ? '#e6c675' : '#1d1612');
       const cellFontPx = rows <= 14 ? 21 : rows <= 18 ? 18 : rows <= 21 ? 15.5 : 14;
       const colWidthPx = rows <= 14 ? 38 : rows <= 18 ? 33 : 29;
       const leafBodyHeightPx = 500;
@@ -1504,17 +1595,17 @@
       const banxinHtml = `
         <div class="w-11 shrink-0 h-full flex flex-col items-center justify-between border-x select-none font-guji" style="border-color:${frameColor};">
           <div class="h-10 w-full flex flex-col">${trunkHtml}</div>
-          <div class="py-1 text-[11px] font-bold tracking-tighter leading-none text-center overflow-hidden" style="writing-mode: vertical-rl; max-height: 120px;">${state.bookTitle.slice(0, 8)}</div>
-          <div class="w-full">${buildFishtailSvg(state.fishtail, false, isIndigo)}</div>
-          <div class="flex-1 py-2 flex flex-col items-center justify-center gap-2 text-[11px] font-semibold" style="writing-mode: vertical-rl;"><span>${leaf.volume || state.bookVolume}</span><span>第${toChineseNum(leaf.volLeafNumber)}葉</span></div>
-          <div class="w-full">${state.fishtail === 'double_solid' || state.fishtail === 'hollow_floral' ? buildFishtailSvg(state.fishtail, true, isIndigo) : ''}</div>
-          <div class="py-1.5 text-[10px] opacity-85 tracking-tighter" style="writing-mode: vertical-rl; max-height: 75px;">${state.publisher.slice(0, 6)}</div>
+          <div class="py-1 text-[11px] font-bold tracking-tighter leading-none text-center overflow-hidden" style="writing-mode: vertical-rl; max-height: 120px; color:${colors.mouth};">${state.bookTitle.slice(0, 8)}</div>
+          <div class="w-full">${buildFishtailSvg(state.fishtail, false, isIndigo, colors.mouth)}</div>
+          <div class="flex-1 py-2 flex flex-col items-center justify-center gap-2 text-[11px] font-semibold" style="writing-mode: vertical-rl; color:${colors.mouth};"><span>${leaf.volume || state.bookVolume}</span><span>第${toChineseNum(leaf.volLeafNumber)}葉</span></div>
+          <div class="w-full">${state.fishtail === 'double_solid' || state.fishtail === 'hollow_floral' ? buildFishtailSvg(state.fishtail, true, isIndigo, colors.mouth) : ''}</div>
+          <div class="py-1.5 text-[10px] opacity-85 tracking-tighter" style="writing-mode: vertical-rl; max-height: 75px; color:${colors.mouth};">${state.publisher.slice(0, 6)}</div>
           <div class="h-8 w-full flex flex-col">${trunkHtml}</div>
         </div>`;
 
       const earText = leaf.earTitle || state.earTitle;
-      const rightEarHtml = state.showEar && earText ? `<div class="absolute -right-[26px] top-6 w-[26px] py-2 border-2 border-l-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl;">${earText.slice(0, 4)}</div>` : '';
-      const leftEarHtml = state.showEar && earText && mode === 'left_half' ? `<div class="absolute -left-[26px] top-6 w-[26px] py-2 border-2 border-r-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl;">${earText.slice(0, 4)}</div>` : '';
+      const rightEarHtml = state.showEar && earText ? `<div class="absolute -right-[26px] top-6 w-[26px] py-2 border-2 border-l-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl; color:${colors.ear};">${earText.slice(0, 4)}</div>` : '';
+      const leftEarHtml = state.showEar && earText && mode === 'left_half' ? `<div class="absolute -left-[26px] top-6 w-[26px] py-2 border-2 border-r-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl; color:${colors.ear};">${earText.slice(0, 4)}</div>` : '';
       const showRight = mode === 'spread' || mode === 'right_half' || mode === 'all_leaves';
       const showLeft = mode === 'spread' || mode === 'left_half' || mode === 'all_leaves';
       const halfWidth = cols * colWidthPx;
@@ -1554,7 +1645,8 @@
 
       document.getElementById('labelColsVal').textContent = `${cols} 行`;
       document.getElementById('labelRowsVal').textContent = `${rows} 字`;
-      document.getElementById('badgeHangkuan').textContent = `半叶${toChineseNum(cols)}行，行${toChineseNum(rows)}字，小字双行行${toChineseNum(rows)}字`;
+      const nPerRowBadge = Math.min(4, Math.max(1, Number(state.noteCharsPerRow) || 2));
+      document.getElementById('badgeHangkuan').textContent = `半叶${toChineseNum(cols)}行，行${toChineseNum(rows)}字，小字${nPerRowBadge === 2 ? '双行' : nPerRowBadge + '行'}行${toChineseNum(rows)}字`;
 
       const jumpSelect = document.getElementById('selectJumpLeaf');
       if (jumpSelect) {
@@ -1644,19 +1736,20 @@
 
       const paperColors = { 'paper-bamboo': '#f3e8d2', 'paper-xuan': '#faf6ee', 'paper-hemp': '#e6d3b3', 'paper-indigo': '#1b2838', 'paper-white': '#ffffff' };
       ctx.fillStyle = paperColors[state.paper] || '#f3e8d2'; ctx.fillRect(0, 0, fullW, fullH);
-      const inkColor = isIndigo ? '#e6c675' : '#1e1815';
-      const redColor = isIndigo ? '#ff7b72' : '#b92b27';
-      const ruleColor = state.gridRule === 'zhusi' ? (isIndigo ? 'rgba(230,198,117,0.45)' : 'rgba(185,43,39,0.55)') : (isIndigo ? 'rgba(230,198,117,0.35)' : 'rgba(30,24,21,0.55)');
-
-      ctx.strokeStyle = inkColor; ctx.lineWidth = state.borderStyle === 'all_single' ? 2 : 4.5;
+      const colors = getEffectiveColors();
+      const inkColor = colors.ink, redColor = colors.red, ruleColor = colors.rule;
+      const noteColor = colors.note, meipiColor = colors.meipi, mouthColor = colors.mouth, earColor = colors.ear;
+      const noteScaleRatio = (Number(state.noteFontScale) || 100) / 100;
+      const noteFontCss = state.noteFontFamily || state.fontFamily;
+      ctx.strokeStyle = colors.frame; ctx.lineWidth = state.borderStyle === 'all_single' ? 2 : 4.5;
       ctx.strokeRect(padX - 5, padTop - 5, totalBodyW + 10, bodyH + 10);
       ctx.lineWidth = 1.4; ctx.strokeRect(padX, padTop, totalBodyW, bodyH);
 
       const earText = leaf.earTitle || state.earTitle;
       if (state.showEar && earText) {
         const earX = padX + totalBodyW + 5, earY = padTop + 20, earW = 28, earH = 88;
-        ctx.lineWidth = 2; ctx.strokeStyle = inkColor; ctx.strokeRect(earX, earY, earW, earH);
-        ctx.fillStyle = inkColor; ctx.font = `bold 13px ${state.fontFamily}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 2; ctx.strokeStyle = colors.frame; ctx.strokeRect(earX, earY, earW, earH);
+        ctx.fillStyle = earColor; ctx.font = `bold 13px ${state.fontFamily}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         earText.slice(0, 4).split('').forEach((ch, idx) => ctx.fillText(ch, earX + earW / 2, earY + 16 + idx * 18));
       }
 
@@ -1668,7 +1761,7 @@
             ctx.beginPath(); ctx.moveTo(colLeftX, padTop); ctx.lineTo(colLeftX, padTop + bodyH); ctx.stroke();
           }
           if (colObj.meipi) {
-            ctx.fillStyle = redColor; ctx.font = `600 11px ${state.fontFamily}`; ctx.textAlign = 'center';
+            ctx.fillStyle = meipiColor; ctx.font = `600 11px ${state.fontFamily}`; ctx.textAlign = 'center';
             colObj.meipi.slice(0, 4).split('').forEach((mc, mIdx) => ctx.fillText(mc, colCenterX, padTop - 58 + mIdx * 12));
           }
           colObj.cells.forEach((cell, rowIdx) => {
@@ -1692,13 +1785,16 @@
                 ctx.fillText(cell.judou, colLeftX + colW - 7, cellTopY + cellH - 5);
               }
             } else if (cell.type === 'dual') {
-              const smallFont = Math.max(11, Math.floor(cellH * 0.43 * fontScale));
-              ctx.font = `${fontWeight} ${smallFont}px ${state.fontFamily}`;
-              ctx.fillStyle = inkColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-              ctx.fillText(cell.rightChar, colLeftX + colW * 0.73, cellCenterY);
-              ctx.fillText(cell.leftChar, colLeftX + colW * 0.27, cellCenterY);
-              if (cell.rightJudou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 10px ${state.fontFamily}`; ctx.fillText(cell.rightJudou, colLeftX + colW - 4, cellTopY + cellH - 3); }
-              if (cell.leftJudou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 10px ${state.fontFamily}`; ctx.fillText(cell.leftJudou, colLeftX + colW * 0.48, cellTopY + cellH - 3); }
+              const smallFont = Math.max(9, Math.floor(cellH * 0.43 * fontScale * noteScaleRatio));
+              ctx.font = `${fontWeight} ${smallFont}px ${noteFontCss}`;
+              ctx.fillStyle = noteColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              const nItems = dualCellItems(cell);
+              nItems.forEach((item, idx) => {
+                ctx.fillText(item.char, colLeftX + colW * (1 - (idx + 0.5) / nItems.length), cellCenterY);
+              });
+              nItems.forEach((item, idx) => {
+                if (item.judou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 10px ${state.fontFamily}`; ctx.fillText(item.judou, colLeftX + colW * (1 - idx / nItems.length) - 4, cellTopY + cellH - 3); }
+              });
             }
           });
         });
@@ -1715,9 +1811,9 @@
 
       drawHalfLeaf(leaf.leftCols, padX, false);
       const bx = padX + halfW;
-      ctx.strokeStyle = inkColor; ctx.lineWidth = 1.4; ctx.strokeRect(bx, padTop, banxinW, bodyH);
+      ctx.strokeStyle = colors.frame; ctx.lineWidth = 1.4; ctx.strokeRect(bx, padTop, banxinW, bodyH);
       if (state.fishtail !== 'none') {
-        const fy1 = padTop + 145; ctx.fillStyle = inkColor; ctx.fillRect(bx + 2, fy1, banxinW - 4, 4);
+        const fy1 = padTop + 145; ctx.fillStyle = mouthColor; ctx.fillRect(bx + 2, fy1, banxinW - 4, 4);
         ctx.beginPath(); ctx.moveTo(bx + 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 26); ctx.lineTo(bx + banxinW / 2, fy1 + 15); ctx.lineTo(bx + 2, fy1 + 26); ctx.closePath(); ctx.fill();
         if (state.fishtail === 'double_solid' || state.fishtail === 'hollow_floral') {
           const fy2 = padTop + bodyH - 135;
@@ -1725,7 +1821,7 @@
           ctx.fillRect(bx + 2, fy2 + 22, banxinW - 4, 4);
         }
       }
-      ctx.fillStyle = inkColor; ctx.textAlign = 'center';
+      ctx.fillStyle = mouthColor; ctx.textAlign = 'center';
       ctx.font = `bold 13px ${state.fontFamily}`; state.bookTitle.slice(0, 7).split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + 34 + idx * 15));
       ctx.font = `600 12px ${state.fontFamily}`; `${leaf.volume || state.bookVolume}　第${toChineseNum(leaf.volLeafNumber)}葉`.split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + 210 + idx * 16));
       ctx.font = `500 11px ${state.fontFamily}`; state.publisher.slice(0, 6).split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + bodyH - 95 + idx * 14));
@@ -2014,10 +2110,26 @@
         </article>`).join('');
     }
 
+    function syncTypographyControls() {
+      document.getElementById('selectNoteFontScale').value = String(state.noteFontScale || 100);
+      document.getElementById('selectNoteChars').value = String(state.noteCharsPerRow || 2);
+      document.getElementById('selectNoteFontFamily').value = state.noteFontFamily || '';
+      const c = getEffectiveColors();
+      const isIndigo = state.paper === 'paper-indigo';
+      const ruleDisplay = state.ruleColor || (state.gridRule === 'zhusi' ? (isIndigo ? '#e6c675' : '#b92b27') : (isIndigo ? '#e6c675' : '#1e1815'));
+      const map = { inputColorText: c.ink, inputColorNote: c.note, inputColorMeipi: c.meipi, inputColorFrame: c.frame, inputColorRule: ruleDisplay, inputColorMouth: c.mouth, inputColorEar: c.ear };
+      for (const [id, val] of Object.entries(map)) {
+        const el = document.getElementById(id); if (!el) continue;
+        el.value = (typeof val === 'string' && val.startsWith('#') && val.length >= 7) ? val.slice(0, 7) : '#1e1815';
+      }
+    }
+
     function applyEditionPreset(presetKey) {
       const p = EDITION_PRESETS[presetKey];
       if (!p) return;
       Object.assign(state, { colsPerHalf: p.cols, rowsPerCol: p.rows, borderStyle: p.borderStyle, gridRule: p.gridRule, fishtail: p.fishtail, mouth: p.mouth, paper: p.paper, judou: p.judou, noteFlow: p.noteFlow, showEar: p.showEar, showProperLine: p.showProperLine, showSeal: p.showSeal });
+      Object.assign(state, { textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '', noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '' });
+      syncTypographyControls();
       document.getElementById('selectEditionPreset').value = presetKey;
       document.getElementById('rangeCols').value = p.cols; document.getElementById('rangeRows').value = p.rows;
       document.getElementById('selectBorderStyle').value = p.borderStyle; document.getElementById('selectGridRule').value = p.gridRule;
@@ -2080,6 +2192,11 @@
           const proj = JSON.parse(await file.text());
           Object.assign(state, { bookTitle: proj.bookTitle || baseTitle, bookVolume: proj.bookVolume || '卷一', bookAuthor: proj.bookAuthor || '〔撰者〕', publisher: proj.publisher || '芸窗重梓', coverTitle: proj.coverTitle || proj.bookTitle || baseTitle, paijiCenter: proj.paijiCenter || proj.bookTitle || baseTitle, sourceText: proj.sourceText || '', currentLeafIdx: 0 });
           if (proj.preset && EDITION_PRESETS[proj.preset]) applyEditionPreset(proj.preset);
+          ['textColor', 'noteColor', 'meipiColor', 'frameColor', 'ruleColor', 'mouthColor', 'earColor'].forEach((k) => { if (typeof proj[k] === 'string' && proj[k]) state[k] = proj[k]; });
+          if (proj.noteFontScale) state.noteFontScale = Number(proj.noteFontScale) || 100;
+          if (proj.noteCharsPerRow) state.noteCharsPerRow = Math.min(4, Math.max(1, Number(proj.noteCharsPerRow) || 2));
+          if (proj.noteFontFamily) state.noteFontFamily = proj.noteFontFamily;
+          syncTypographyControls();
           document.getElementById('inputBookTitle').value = state.bookTitle;
           document.getElementById('inputBookAuthor').value = state.bookAuthor;
           document.getElementById('textareaSource').value = state.sourceText;
@@ -2106,6 +2223,8 @@
     window.addEventListener('DOMContentLoaded', () => {
       loadAiConfigFromStorage();
       document.getElementById('selectBookSample').innerHTML = CLASSICAL_BOOKS.map((b) => `<option value="${b.id}">《${b.title}》</option>`).join('');
+      document.getElementById('selectNoteFontFamily').innerHTML += document.getElementById('selectFontFamily').innerHTML.replace(/ selected/g, '');
+      syncTypographyControls();
       document.getElementById('tabBtnStudio').addEventListener('click', () => switchTab('studio'));
       document.getElementById('tabBtnCorpus').addEventListener('click', () => { switchTab('corpus'); if (state.daizhigeItems.length === 0) loadDaizhigeDir('儒藏'); });
       document.getElementById('tabBtnCatalog').addEventListener('click', () => { renderCatalog(); switchTab('catalog'); });
@@ -2205,6 +2324,16 @@
       [['selectBorderStyle', 'borderStyle'], ['selectGridRule', 'gridRule'], ['selectFishtail', 'fishtail'], ['selectMouth', 'mouth'], ['selectPaper', 'paper'], ['selectJudou', 'judou'], ['selectNoteFlow', 'noteFlow']].forEach(([id, key]) => {
         document.getElementById(id).addEventListener('change', (e) => { state[key] = e.target.value; renderCurrentLeaf(); });
       });
+      [['selectNoteFontScale', 'noteFontScale', true], ['selectNoteChars', 'noteCharsPerRow', true], ['selectNoteFontFamily', 'noteFontFamily', false]].forEach(([id, key, isNum]) => {
+        document.getElementById(id).addEventListener('change', (e) => { state[key] = isNum ? Number(e.target.value) : e.target.value; renderCurrentLeaf(); });
+      });
+      [['inputColorText', 'textColor'], ['inputColorNote', 'noteColor'], ['inputColorMeipi', 'meipiColor'], ['inputColorFrame', 'frameColor'], ['inputColorRule', 'ruleColor'], ['inputColorMouth', 'mouthColor'], ['inputColorEar', 'earColor']].forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('input', (e) => { state[key] = e.target.value; renderCurrentLeaf(); });
+      });
+      document.getElementById('btnResetColors').addEventListener('click', () => {
+        Object.assign(state, { textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '' });
+        syncTypographyControls(); renderCurrentLeaf(); showToast('已恢复默认纸色主题配色', '🎨');
+      });
       [['chkShowEar', 'showEar'], ['chkShowProperLine', 'showProperLine'], ['chkShowSeal', 'showSeal'], ['chkShowVolumeHeader', 'showVolumeHeader']].forEach(([id, key]) => {
         document.getElementById(id).addEventListener('change', (e) => { state[key] = e.target.checked; renderCurrentLeaf(); });
       });
@@ -2236,6 +2365,10 @@
       document.getElementById('btnExportPng').addEventListener('click', exportCurrentLeafToPng);
       document.getElementById('btnExportProject').addEventListener('click', () => {
         const proj = { schema: 'yunchuang-guji-project/v1', bookTitle: state.bookTitle, bookVolume: state.bookVolume, bookAuthor: state.bookAuthor, publisher: state.publisher, coverTitle: state.coverTitle, paijiCenter: state.paijiCenter, preset: document.getElementById('selectEditionPreset').value, sourceText: state.sourceText };
+        ['textColor', 'noteColor', 'meipiColor', 'frameColor', 'ruleColor', 'mouthColor', 'earColor'].forEach((k) => { if (state[k]) proj[k] = state[k]; });
+        if (state.noteFontScale && state.noteFontScale !== 100) proj.noteFontScale = state.noteFontScale;
+        if (state.noteCharsPerRow && state.noteCharsPerRow !== 2) proj.noteCharsPerRow = state.noteCharsPerRow;
+        if (state.noteFontFamily) proj.noteFontFamily = state.noteFontFamily;
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(proj, null, 2)], { type: 'application/json;charset=utf-8' })); a.download = `${state.bookTitle}.guji.json`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a); showToast('已导出 .guji.json 工程文件', '📦');
       });
