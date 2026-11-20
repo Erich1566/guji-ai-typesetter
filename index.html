@@ -2008,7 +2008,7 @@
     }
 
     async function callCustomAiApi(systemPrompt, userText) {
-      saveAiConfigFromStorage();
+      saveAiConfigToStorage();
       if (!state.aiBaseUrl || !state.aiModel) throw new Error('请先填写 AI API Base URL 和模型名称');
       if (!state.aiKey && !state.aiBaseUrl.includes('localhost') && !state.aiBaseUrl.includes('127.0.0.1')) throw new Error('请先填写有效的 API Key');
       const statusEl = document.getElementById('aiStatusIndicator');
