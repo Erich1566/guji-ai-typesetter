@@ -1,0 +1,2278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>芸窗·古籍 AI 排版系统 — 殆知阁/诗歌语料直连、免费古籍字体与智能标校工作台</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- 内置免费开源古籍字体：思源宋体简/繁、霞鹜文楷繁/屏显、Shippori明朝、志莽行书、马善政楷书 -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=LXGW+WenKai+TC:wght@400;700&family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Serif+TC:wght@400;600;700;900&family=Shippori+Mincho:wght@400;600;700;800&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-web/lxgwwenkaiscreen/result.css" rel="stylesheet">
+  <style>
+    :root {
+      --guji-font: 'Noto Serif TC', 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+      --guji-font-scale: 1;
+      --ui-font: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    body {
+      font-family: var(--ui-font);
+      background-color: #f4efe6;
+      color: #2c221e;
+      overflow-x: hidden;
+    }
+    .font-guji {
+      font-family: var(--guji-font);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(120, 95, 70, 0.08); }
+    ::-webkit-scrollbar-thumb { background: rgba(120, 95, 70, 0.28); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(120, 95, 70, 0.45); }
+
+    /* Paper Textures */
+    .paper-bamboo {
+      background-color: #f3e8d2;
+      background-image:
+        radial-gradient(rgba(139, 105, 60, 0.05) 1px, transparent 0),
+        linear-gradient(90deg, rgba(160, 120, 70, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(160, 120, 70, 0.025) 1px, transparent 1px);
+      background-size: 24px 24px, 12px 12px, 12px 12px;
+      color: #1e1815;
+    }
+    .paper-xuan {
+      background-color: #faf6ee;
+      background-image: radial-gradient(rgba(120, 100, 80, 0.035) 1px, transparent 0);
+      background-size: 20px 20px;
+      color: #181412;
+    }
+    .paper-hemp {
+      background-color: #e6d3b3;
+      background-image:
+        radial-gradient(rgba(110, 75, 40, 0.07) 1px, transparent 0),
+        linear-gradient(180deg, rgba(120, 80, 40, 0.04) 0%, rgba(90, 60, 30, 0.06) 100%);
+      background-size: 18px 18px, 100% 100%;
+      color: #231912;
+    }
+    .paper-indigo {
+      background-color: #1b2838;
+      background-image: radial-gradient(rgba(212, 175, 55, 0.06) 1px, transparent 0);
+      background-size: 22px 22px;
+      color: #e6c675;
+    }
+    .paper-white {
+      background-color: #ffffff;
+      color: #111111;
+    }
+
+    .seal-stamp {
+      font-family: var(--guji-font);
+      border: 2.5px solid #b92b27;
+      color: #b92b27;
+      background-color: rgba(185, 43, 39, 0.06);
+      box-shadow: inset 0 0 0 1px rgba(185, 43, 39, 0.35);
+      line-height: 1.05;
+      letter-spacing: 0.02em;
+      user-select: none;
+    }
+    .seal-stamp-inverse {
+      font-family: var(--guji-font);
+      background-color: #b92b27;
+      color: #faf4e8;
+      border: 2px solid #b92b27;
+      line-height: 1.05;
+      user-select: none;
+    }
+
+    .book-title-wave {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='8' viewBox='0 0 4 8'%3E%3Cpath d='M 3 0 Q 0 2 3 4 Q 4 6 1 8' fill='none' stroke='%23991b1b' stroke-width='1.1'/%3E%3C/svg%3E");
+      background-repeat: repeat-y;
+      background-position: left center;
+    }
+    .paper-indigo .book-title-wave {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='8' viewBox='0 0 4 8'%3E%3Cpath d='M 3 0 Q 0 2 3 4 Q 4 6 1 8' fill='none' stroke='%23e6c675' stroke-width='1.1'/%3E%3C/svg%3E");
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; }
+      .print-page-break { page-break-after: always; break-after: page; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-amber-800 selection:text-amber-50">
+
+  <!-- Top Navigation Header -->
+  <header class="no-print sticky top-0 z-30 bg-[#231b16] text-amber-50 border-b border-amber-900/60 shadow-md">
+    <div class="max-w-[1600px] mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded bg-[#9e2a2b] border border-amber-400/50 flex items-center justify-center font-guji font-bold text-lg text-amber-50 shadow-inner">
+          芸窗
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-guji text-lg sm:text-xl font-bold tracking-wider text-amber-100">芸窗·古籍 AI 排版系统</h1>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-amber-900/70 text-amber-200 border border-amber-700/50 font-medium">AI标校 · 殆知阁/诗歌语料 · Skill联动</span>
+          </div>
+          <p class="text-xs text-amber-300/75 hidden sm:block">内置7款免费开源古籍字体 · 支持自定义大模型API、Word/TXT上传、线装封面定制及整书PDF导出</p>
+        </div>
+      </div>
+
+      <!-- Mode Switcher Tabs -->
+      <nav class="flex items-center bg-[#18120e] p-1 rounded-lg border border-amber-900/50 flex-wrap">
+        <button id="tabBtnStudio" type="button" class="px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 bg-[#9e2a2b] text-white shadow">
+          <span>📜</span><span>重排工坊</span>
+        </button>
+        <button id="tabBtnCorpus" type="button" class="px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 text-amber-200/80 hover:text-white">
+          <span>🌐</span><span>语料库直连</span>
+          <span class="text-[10px] px-1.5 bg-emerald-800/80 text-emerald-100 rounded-full">殆知阁/诗歌</span>
+        </button>
+        <button id="tabBtnCatalog" type="button" class="px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 text-amber-200/80 hover:text-white">
+          <span>📚</span><span>典籍善本库</span>
+        </button>
+        <button id="tabBtnAnatomy" type="button" class="px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 text-amber-200/80 hover:text-white">
+          <span>🤖</span><span>Skill与版式规范</span>
+        </button>
+      </nav>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <button id="btnExportPdf" type="button" class="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#9e2a2b] hover:bg-[#822021] text-white border border-amber-400/40 transition flex items-center gap-1.5 shadow">
+          <span>📕</span><span>导出整书 PDF</span>
+        </button>
+        <button id="btnExportPng" type="button" class="px-3 py-1.5 rounded-md text-xs font-medium bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-500/40 transition flex items-center gap-1.5 shadow-sm">
+          <span>🖼️</span><span>导出书叶 PNG</span>
+        </button>
+        <button id="btnExportProject" type="button" class="px-3 py-1.5 rounded-md text-xs font-medium bg-stone-800 hover:bg-stone-700 text-amber-100 border border-amber-800/60 transition flex items-center gap-1.5" title="导出 .guji.json 工程文件（与 Agent Skill 互通）">
+          <span>📦</span><span class="hidden md:inline">导出工程 JSON</span>
+        </button>
+        <button id="btnExportTxt" type="button" class="px-3 py-1.5 rounded-md text-xs font-medium bg-stone-800 hover:bg-stone-700 text-amber-100 border border-amber-800/60 transition flex items-center gap-1.5">
+          <span>📥</span><span class="hidden md:inline">导出源码</span>
+        </button>
+        <button id="btnPrintBook" type="button" class="px-3 py-1.5 rounded-md text-xs font-medium bg-stone-800 hover:bg-stone-700 text-amber-100 border border-amber-800/60 transition flex items-center gap-1.5">
+          <span>🖨️</span><span class="hidden md:inline">打印书叶</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Notification -->
+  <div id="toastBanner" class="fixed bottom-5 right-5 z-50 hidden px-4 py-2.5 rounded-lg bg-[#231b16] text-amber-100 border border-amber-600/60 shadow-xl text-xs sm:text-sm flex items-center gap-2 transition-all">
+    <span id="toastIcon">✨</span>
+    <span id="toastMsg">操作成功</span>
+  </div>
+
+  <!-- PDF Export Progress Modal -->
+  <div id="modalPdfProgress" class="fixed inset-0 z-50 hidden bg-black/65 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-[#fbf8f3] border-2 border-amber-900 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-center">
+      <div class="w-12 h-12 mx-auto rounded-full bg-amber-900/10 border border-amber-800/30 flex items-center justify-center text-2xl">📕</div>
+      <h3 class="font-guji text-lg font-bold text-stone-900" id="pdfProgressTitle">正在雕版渲染整书 PDF...</h3>
+      <p class="text-xs text-stone-600" id="pdfProgressStep">准备生成封面、牌记与全书筒子页</p>
+      <div class="w-full h-3 bg-stone-200 rounded-full overflow-hidden border border-stone-300">
+        <div id="pdfProgressBar" class="h-full bg-[#9e2a2b] transition-all duration-150" style="width: 0%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- VIEW 1: 重排工坊 (TYPESETTING STUDIO)                                   -->
+  <!-- ===================================================================== -->
+  <main id="viewStudio" class="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-4 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+
+    <!-- LEFT COLUMN: Editor, AI API, Local/Free Fonts & Cover Customizer -->
+    <section class="no-print lg:col-span-5 bg-[#fbf8f3] border border-stone-300 rounded-xl shadow-sm overflow-hidden flex flex-col">
+      <!-- Panel Header + Sample & Multi-Format Upload -->
+      <div class="bg-[#ede5d8] px-3.5 py-2.5 border-b border-stone-300 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-4 bg-[#9e2a2b] rounded-sm"></span>
+          <h2 class="font-guji font-bold text-sm text-stone-800">文本录入与 AI 排版工作台</h2>
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <select id="selectBookSample" class="text-xs bg-white border border-stone-300 rounded px-2 py-1 text-stone-800 focus:outline-none focus:border-amber-700 max-w-[155px]"></select>
+          <label class="px-2.5 py-1 rounded bg-amber-900 hover:bg-amber-800 text-amber-50 text-[11px] font-medium cursor-pointer transition flex items-center gap-1 shadow-2xs" title="支持导入 .txt / .md / .docx / .json / .guji.json 工程文件">
+            <span>📂 上传文档</span>
+            <input id="inputImportDocFile" type="file" accept=".txt,.md,.json,.html,.docx" class="hidden" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Left Settings Sub-Tabs -->
+      <div class="bg-[#e4dac9] px-2.5 pt-2 border-b border-stone-300 flex items-center gap-1 text-[11px] sm:text-xs flex-wrap">
+        <button id="subTabBtnText" type="button" class="px-2.5 py-1.5 rounded-t-lg font-semibold bg-[#fbf8f3] text-[#9e2a2b] border border-b-0 border-stone-300">
+          📝 正文与分卷
+        </button>
+        <button id="subTabBtnAI" type="button" class="px-2.5 py-1.5 rounded-t-lg font-medium bg-[#d8ccb8]/60 hover:bg-[#fbf8f3]/70 text-stone-700">
+          ✨ AI标校与API
+        </button>
+        <button id="subTabBtnFontLayout" type="button" class="px-2.5 py-1.5 rounded-t-lg font-medium bg-[#d8ccb8]/60 hover:bg-[#fbf8f3]/70 text-stone-700">
+          🔤 免费/本地字体与版式
+        </button>
+        <button id="subTabBtnCover" type="button" class="px-2.5 py-1.5 rounded-t-lg font-medium bg-[#d8ccb8]/60 hover:bg-[#fbf8f3]/70 text-stone-700">
+          📕 封面与牌记
+        </button>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- SUB-PANEL 1: 正文与整书分卷录入                                     -->
+      <!-- ================================================================= -->
+      <div id="subPanelText" class="flex-1 flex flex-col divide-y divide-stone-200">
+        <div class="p-3 bg-[#f6f1e7] grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+          <div>
+            <label for="inputBookTitle" class="block text-[11px] text-stone-500 mb-0.5">全书总书名（版心/卷端）</label>
+            <input id="inputBookTitle" type="text" value="增刊校正王狀元集注分類東坡先生詩" class="w-full px-2 py-1 bg-white border border-stone-300 rounded text-stone-800 font-guji text-xs focus:outline-none focus:border-amber-700" />
+          </div>
+          <div>
+            <label for="inputBookVolume" class="block text-[11px] text-stone-500 mb-0.5">默认卷次（版心题记）</label>
+            <input id="inputBookVolume" type="text" value="卷一" class="w-full px-2 py-1 bg-white border border-stone-300 rounded text-stone-800 font-guji text-xs focus:outline-none focus:border-amber-700" />
+          </div>
+          <div>
+            <label for="inputBookAuthor" class="block text-[11px] text-stone-500 mb-0.5">撰者 / 纂注</label>
+            <input id="inputBookAuthor" type="text" value="〔宋〕蘇軾撰 王十朋纂集" class="w-full px-2 py-1 bg-white border border-stone-300 rounded text-stone-800 font-guji text-xs focus:outline-none focus:border-amber-700" />
+          </div>
+          <div>
+            <label for="inputEarTitle" class="block text-[11px] text-stone-500 mb-0.5">默认书耳（耳题篇名）</label>
+            <input id="inputEarTitle" type="text" value="紀行類" class="w-full px-2 py-1 bg-white border border-stone-300 rounded text-stone-800 font-guji text-xs focus:outline-none focus:border-amber-700" />
+          </div>
+          <div>
+            <label for="inputPublisher" class="block text-[11px] text-stone-500 mb-0.5">版心下款 / 藏板堂号</label>
+            <input id="inputPublisher" type="text" value="四部叢刊本" class="w-full px-2 py-1 bg-white border border-stone-300 rounded text-stone-800 font-guji text-xs focus:outline-none focus:border-amber-700" />
+          </div>
+          <div>
+            <label for="inputSealText" class="block text-[11px] text-stone-500 mb-0.5">卷端藏书钤印（四字）</label>
+            <input id="inputSealText" type="text" value="芸窗珍藏" maxlength="6" class="w-full px-2 py-1 bg-white border border-stone-300 rounded text-stone-800 font-guji text-xs focus:outline-none focus:border-amber-700" />
+          </div>
+        </div>
+
+        <!-- Multi-Volume Navigation -->
+        <div class="px-3 py-2 bg-[#efe9dd] flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-[11px] font-semibold text-stone-700">整书分卷：</span>
+            <div id="volumePillsContainer" class="flex items-center gap-1 flex-wrap"></div>
+          </div>
+          <button id="btnAddVolume" type="button" class="px-2 py-0.5 rounded bg-amber-800 text-white hover:bg-amber-700 text-[11px] font-medium transition">
+            + 新增一卷
+          </button>
+        </div>
+
+        <!-- Markup Insertion Toolbar -->
+        <div class="px-3 py-2 bg-[#f5efe4] flex flex-wrap items-center gap-1.5">
+          <span class="text-[11px] text-stone-500 mr-0.5">标记：</span>
+          <button type="button" data-insert="【|】" class="markup-btn px-2 py-1 rounded bg-white hover:bg-amber-50 border border-stone-300 text-[11px] text-stone-800 font-medium">【双行夹注】</button>
+          <button type="button" data-insert="〈|〉" class="markup-btn px-2 py-1 rounded bg-white hover:bg-amber-50 border border-stone-300 text-[11px] text-stone-800 font-medium">〈专名号〉</button>
+          <button type="button" data-insert="《|》" class="markup-btn px-2 py-1 rounded bg-white hover:bg-amber-50 border border-stone-300 text-[11px] text-stone-800 font-medium">《书名号》</button>
+          <button type="button" data-insert="[眉批:|]" class="markup-btn px-2 py-1 rounded bg-white hover:bg-amber-50 border border-stone-300 text-[11px] text-[#9e2a2b] font-medium">朱笔眉批</button>
+          <button type="button" data-insert="[卷标:卷二|]" class="markup-btn px-2 py-1 rounded bg-white hover:bg-amber-50 border border-stone-300 text-[11px] text-amber-900 font-medium">[卷标]</button>
+          <button type="button" data-insert="[书耳:|]" class="markup-btn px-2 py-1 rounded bg-white hover:bg-amber-50 border border-stone-300 text-[11px] text-amber-900 font-medium">[书耳]</button>
+          <button type="button" data-insert="■" class="markup-btn px-2 py-1 rounded bg-white hover:bg-amber-50 border border-stone-300 text-[11px] text-stone-800 font-medium">■墨钉</button>
+          <button type="button" data-insert="§" class="markup-btn px-2 py-1 rounded bg-white hover:bg-amber-50 border border-stone-300 text-[11px] text-stone-800 font-medium">§换半叶</button>
+        </div>
+
+        <!-- Text Utilities Bar -->
+        <div class="px-3 py-1.5 bg-stone-100 flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <button id="btnRulePreprocess" type="button" class="px-2 py-0.5 rounded bg-emerald-800 text-white hover:bg-emerald-700 font-medium transition" title="免API本地正则预处理：自动清洗空白、转换括号注疏为【夹注】、规范句读与卷标">
+              ⚡ 本地一键规范化
+            </button>
+            <button id="btnSimpToTrad" type="button" class="px-2 py-0.5 rounded bg-amber-800/10 hover:bg-amber-800/20 text-amber-950 border border-amber-800/30 font-medium transition">
+              简→繁
+            </button>
+            <button id="btnAutoJudou" type="button" class="px-2 py-0.5 rounded bg-amber-800/10 hover:bg-amber-800/20 text-amber-950 border border-amber-800/30 font-medium transition">
+              标点转句读
+            </button>
+            <button id="btnStripPunct" type="button" class="px-2 py-0.5 rounded bg-stone-200 hover:bg-stone-300 text-stone-700 transition">
+              去句读(白文)
+            </button>
+          </div>
+          <span id="editorCharStats" class="text-stone-500 font-mono">0 字</span>
+        </div>
+
+        <!-- Main Textarea (Supports Drag & Drop Upload) -->
+        <div class="p-3 flex-1 flex flex-col">
+          <textarea id="textareaSource" rows="14" class="w-full flex-1 p-3 rounded-lg bg-white border border-stone-300 font-guji text-sm leading-relaxed text-stone-900 focus:outline-none focus:border-amber-700 resize-y" placeholder="在此粘贴文本、拖入本地文档(.txt/.md/.docx/.json)，或从顶部「语料库直连」载入殆知阁/中国诗歌原文..."></textarea>
+          <div class="mt-2 text-[11px] text-stone-500 leading-normal bg-[#f5efe4] p-2 rounded border border-stone-200/80">
+            <span class="font-semibold text-stone-700">支持拖放上传：</span>可直接将 `.txt`、`.md`、`.docx`、`chinese-poetry` `.json` 或 `.guji.json` 拖入文本框。如需 AI 自动区分正文/注疏与加专名，请切换至「✨ AI标校与API」。
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- SUB-PANEL 2: 自定义 AI API 与智能标校工作流                          -->
+      <!-- ================================================================= -->
+      <div id="subPanelAI" class="hidden p-3.5 space-y-3.5 bg-[#f6f1e7]">
+        <!-- Custom AI API Settings -->
+        <div class="bg-white border border-stone-300 rounded-xl p-3.5 space-y-2.5 shadow-2xs">
+          <div class="flex items-center justify-between border-b border-stone-200 pb-2">
+            <span class="font-guji font-bold text-xs text-stone-800 flex items-center gap-1.5">
+              <span>🔑</span>
+              <span>自定义 AI API 接口配置（OpenAI 兼容格式）</span>
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-900/10 text-emerald-800">仅本地浏览器直连，不经中转</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <div>
+              <label for="selectAiPreset" class="block text-[11px] text-stone-600 mb-0.5">服务商模板预设</label>
+              <select id="selectAiPreset" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1.5 text-xs">
+                <option value="deepseek">DeepSeek (api.deepseek.com/v1)</option>
+                <option value="openai">OpenAI (api.openai.com/v1)</option>
+                <option value="qwen">通义千问 DashScope 兼容接口</option>
+                <option value="zhipu">智谱 GLM (open.bigmodel.cn)</option>
+                <option value="ollama">本地 Ollama (localhost:11434/v1)</option>
+                <option value="custom">完全自定义 Endpoint</option>
+              </select>
+            </div>
+            <div>
+              <label for="inputAiModel" class="block text-[11px] text-stone-600 mb-0.5">模型名称 (Model)</label>
+              <input id="inputAiModel" type="text" value="deepseek-chat" class="w-full bg-stone-50 border border-stone-300 rounded px-2.5 py-1.5 text-xs font-mono" />
+            </div>
+            <div class="sm:col-span-2">
+              <label for="inputAiBaseUrl" class="block text-[11px] text-stone-600 mb-0.5">API Base URL</label>
+              <input id="inputAiBaseUrl" type="text" value="https://api.deepseek.com/v1" class="w-full bg-stone-50 border border-stone-300 rounded px-2.5 py-1.5 text-xs font-mono" />
+            </div>
+            <div class="sm:col-span-2">
+              <label for="inputAiKey" class="block text-[11px] text-stone-600 mb-0.5">API Key（保存于当前浏览器 localStorage）</label>
+              <div class="flex gap-1.5">
+                <input id="inputAiKey" type="password" placeholder="sk-..." class="flex-1 bg-stone-50 border border-stone-300 rounded px-2.5 py-1.5 text-xs font-mono" />
+                <button id="btnSaveAiConfig" type="button" class="px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 text-white text-xs font-medium shrink-0">
+                  保存配置
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI One-Click Typesetting Workflows -->
+        <div class="bg-white border border-stone-300 rounded-xl p-3.5 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between border-b border-stone-200 pb-2">
+            <span class="font-guji font-bold text-xs text-stone-800 flex items-center gap-1.5">
+              <span>✨</span>
+              <span>AI 古籍标校与自动排版工作流</span>
+            </span>
+            <span id="aiStatusIndicator" class="text-[11px] text-stone-500">待命</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button id="btnAiSeparateNotes" type="button" class="p-2.5 rounded-lg border border-amber-800/30 bg-[#fbf8f3] hover:bg-amber-50 text-left transition space-y-1">
+              <div class="text-xs font-bold text-[#9e2a2b]">1. AI 正文与注疏分离</div>
+              <div class="text-[11px] text-stone-600">自动辨识注文、按语、音义、集解，包裹为 `【双行夹注】` 语法。</div>
+            </button>
+
+            <button id="btnAiAnnotateProper" type="button" class="p-2.5 rounded-lg border border-amber-800/30 bg-[#fbf8f3] hover:bg-amber-50 text-left transition space-y-1">
+              <div class="text-xs font-bold text-[#9e2a2b]">2. AI 专名与句读精校</div>
+              <div class="text-[11px] text-stone-600">自动添加 `〈人名/地名〉` 专名号、`《书名》` 波浪线并规范句读 `。、`。</div>
+            </button>
+
+            <button id="btnAiVolumeMeipi" type="button" class="p-2.5 rounded-lg border border-amber-800/30 bg-[#fbf8f3] hover:bg-amber-50 text-left transition space-y-1">
+              <div class="text-xs font-bold text-[#9e2a2b]">3. AI 智能分卷与朱笔眉批</div>
+              <div class="text-[11px] text-stone-600">为长文自动切分 `[卷标:]`、`[书耳:]`，并生成提要性 `[眉批:]`。</div>
+            </button>
+
+            <button id="btnAiRecommendLayout" type="button" class="p-2.5 rounded-lg border border-amber-800/30 bg-[#fbf8f3] hover:bg-amber-50 text-left transition space-y-1">
+              <div class="text-xs font-bold text-[#9e2a2b]">4. AI 体裁识别与版式推荐</div>
+              <div class="text-[11px] text-stone-600">分析正文体裁（经注/诗集/史传/笔记），自动配置最相宜的刻本参数。</div>
+            </button>
+          </div>
+
+          <div class="pt-2 border-t border-stone-200 space-y-1.5">
+            <label for="inputAiCustomPrompt" class="block text-[11px] text-stone-600">自定义 AI 排版/校勘指令（作用于当前编辑器文本）</label>
+            <div class="flex gap-1.5">
+              <input id="inputAiCustomPrompt" type="text" placeholder="如：将文中所有唐代诗人名字标上专名号，并在每首诗前加书耳" class="flex-1 bg-stone-50 border border-stone-300 rounded px-2.5 py-1.5 text-xs" />
+              <button id="btnAiRunCustom" type="button" class="px-3 py-1.5 rounded bg-[#9e2a2b] hover:bg-[#822021] text-white text-xs font-medium shrink-0">
+                执行指令
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- SUB-PANEL 3: 免费内置字体 + 本地字体与版式规制                        -->
+      <!-- ================================================================= -->
+      <div id="subPanelFontLayout" class="hidden p-3.5 space-y-4 bg-[#f6f1e7]">
+        <div class="bg-white border border-stone-300 rounded-xl p-3.5 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between border-b border-stone-200 pb-2">
+            <span class="font-guji font-bold text-xs text-stone-800 flex items-center gap-1.5">
+              <span>🔤</span>
+              <span>免费内置古籍字体与本地字库</span>
+            </span>
+            <span id="badgeCurrentFont" class="text-[11px] px-2 py-0.5 rounded bg-amber-900/10 text-amber-900 font-mono">
+              当前：思源宋体繁体
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <div>
+              <label for="selectFontFamily" class="block text-[11px] text-stone-600 mb-1">内置免费开源古籍字体（云端免装直用）</label>
+              <select id="selectFontFamily" class="w-full bg-stone-50 border border-stone-300 rounded px-2.5 py-1.5 text-xs text-stone-800 focus:outline-none focus:border-amber-700">
+                <optgroup label="── 内置免费开源古籍字体 (推荐) ──">
+                  <option value="'Noto Serif TC', 'Noto Serif SC', serif" selected>思源宋体繁体 · 传承刻本风 (免费开源)</option>
+                  <option value="'Noto Serif SC', serif">思源宋体简体 · 现代精校风 (免费开源)</option>
+                  <option value="'LXGW WenKai TC', 'LXGW WenKai Screen', serif">霞鹜文楷繁体 · 传承手写楷 (免费开源)</option>
+                  <option value="'LXGW WenKai Screen', 'LXGW WenKai TC', serif">霞鹜文楷屏显版 · 温润写刻 (免费开源)</option>
+                  <option value="'Shippori Mincho', 'Noto Serif TC', serif">Shippori 明朝 · 雕版铅字风 (免费开源)</option>
+                  <option value="'Zhi Mang Xing', 'Noto Serif TC', cursive">志莽行书 · 手抄稿本风 (免费开源)</option>
+                  <option value="'Ma Shan Zheng', 'Noto Serif TC', cursive">马善政毛笔楷 · 封面匾额风 (免费开源)</option>
+                </optgroup>
+                <optgroup label="── 常见系统预设字体 ──">
+                  <option value="'KaiTi', 'STKaiti', 'BiauKai', 'Kaiti SC', serif">系统楷体 (KaiTi / 楷体)</option>
+                  <option value="'FangSong', 'STFangsong', 'FangSong_GB2312', serif">系统仿宋 (FangSong / 仿宋)</option>
+                  <option value="'PMingLiU', 'MingLiU', 'SimSun', serif">新细明体 / 中易宋体</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-stone-600 mb-1">导入本地字体文件 (.ttf / .otf / .woff2)</label>
+              <label class="w-full px-3 py-1.5 rounded bg-[#9e2a2b] hover:bg-[#822021] text-white text-xs font-medium cursor-pointer transition flex items-center justify-center gap-1.5 shadow-2xs">
+                <span>📂 选择本地字体加载</span>
+                <input id="inputLocalFontFile" type="file" accept=".ttf,.otf,.woff,.woff2" class="hidden" />
+              </label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
+            <div class="sm:col-span-5">
+              <label class="block text-[11px] text-stone-600 mb-1">读取本机已安装字库</label>
+              <button id="btnQueryLocalFonts" type="button" class="w-full px-2.5 py-1.5 rounded bg-amber-900/15 hover:bg-amber-900/25 text-amber-950 border border-amber-800/30 text-xs font-medium transition">
+                🔍 扫描本机系统字体
+              </button>
+            </div>
+            <div class="sm:col-span-7">
+              <label for="inputCustomFontName" class="block text-[11px] text-stone-600 mb-1">或直接输入本机字体名</label>
+              <div class="flex gap-1">
+                <input id="inputCustomFontName" type="text" list="localFontDatalist" placeholder="如：方正清刻本悦宋繁体" class="flex-1 bg-stone-50 border border-stone-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-amber-700" />
+                <datalist id="localFontDatalist"></datalist>
+                <button id="btnApplyCustomFont" type="button" class="px-3 py-1 rounded bg-stone-800 hover:bg-stone-700 text-amber-50 text-xs font-medium shrink-0">
+                  应用
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 pt-2 border-t border-stone-200/80 text-xs">
+            <div>
+              <div class="flex justify-between text-[11px] text-stone-600 mb-0.5">
+                <label for="rangeFontScale">字面大小缩放</label>
+                <span id="labelFontScaleVal" class="font-semibold text-amber-900">100%</span>
+              </div>
+              <input id="rangeFontScale" type="range" min="80" max="125" value="100" class="w-full accent-amber-800 cursor-pointer" />
+            </div>
+            <div>
+              <label for="selectFontWeight" class="block text-[11px] text-stone-600 mb-0.5">刷印着墨浓淡（字重）</label>
+              <select id="selectFontWeight" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="400">清瘦初印（400 常规）</option>
+                <option value="600" selected>精刻适中（600 半粗）</option>
+                <option value="700">浓墨重印（700 粗体）</option>
+                <option value="900">魁本极粗（900 特粗）</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-stone-300 rounded-xl p-3.5 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between border-b border-stone-200 pb-2">
+            <span class="font-guji font-bold text-xs text-stone-800 flex items-center gap-1.5">
+              <span>⚙️</span><span>版式规制与行款设定</span>
+            </span>
+            <select id="selectEditionPreset" class="text-xs bg-stone-50 border border-stone-300 rounded px-2 py-1 text-stone-800 font-medium focus:outline-none focus:border-amber-700">
+              <option value="song_sibu">四部丛刊景印宋刻本（左右双边·单鱼尾）</option>
+              <option value="edo_kui">日本江户时刻魁本大字五经本（大字白文）</option>
+              <option value="siku_zhusi">钦定四库全书本（四周双边·朱丝栏）</option>
+              <option value="ming_jiajing">明嘉靖壬子董氏刻本（四周单边·白口）</option>
+              <option value="qing_langhuan">清光绪琅环阁藏板（四周双边·大黑口）</option>
+              <option value="indigo_gold">内府磁青纸泥金写本（磁青泥金·朱丝栏）</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+            <div>
+              <div class="flex justify-between text-[11px] text-stone-600 mb-0.5">
+                <label for="rangeCols">半叶行数</label>
+                <span id="labelColsVal" class="font-semibold text-amber-900">9 行</span>
+              </div>
+              <input id="rangeCols" type="range" min="6" max="13" value="9" class="w-full accent-amber-800 cursor-pointer" />
+            </div>
+
+            <div>
+              <div class="flex justify-between text-[11px] text-stone-600 mb-0.5">
+                <label for="rangeRows">每行字数</label>
+                <span id="labelRowsVal" class="font-semibold text-amber-900">18 字</span>
+              </div>
+              <input id="rangeRows" type="range" min="12" max="24" value="18" class="w-full accent-amber-800 cursor-pointer" />
+            </div>
+
+            <div>
+              <label for="selectBorderStyle" class="block text-[11px] text-stone-600 mb-0.5">版框（边栏）</label>
+              <select id="selectBorderStyle" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="lr_double">左右双边上下单边</option>
+                <option value="all_double" selected>四周双边（文武边）</option>
+                <option value="all_single">四周单边</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectGridRule" class="block text-[11px] text-stone-600 mb-0.5">界行（丝栏）</label>
+              <select id="selectGridRule" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="wusi" selected>乌丝栏（墨线）</option>
+                <option value="zhusi">朱丝栏（红线）</option>
+                <option value="none">无界行（宋刻疏朗）</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectFishtail" class="block text-[11px] text-stone-600 mb-0.5">版心鱼尾</label>
+              <select id="selectFishtail" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="double_solid" selected>双黑鱼尾（上下对折）</option>
+                <option value="single_solid">单黑鱼尾（上鱼尾）</option>
+                <option value="hollow_floral">花鱼尾（线刻空心）</option>
+                <option value="none">无鱼尾</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectMouth" class="block text-[11px] text-stone-600 mb-0.5">版口（象鼻）</label>
+              <select id="selectMouth" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="thin_black" selected>细黑口（小黑口）</option>
+                <option value="white">白口（无象鼻线）</option>
+                <option value="thick_black">大黑口（粗黑口）</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectPaper" class="block text-[11px] text-stone-600 mb-0.5">纸张底色</label>
+              <select id="selectPaper" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="paper-bamboo" selected>古旧竹纸</option>
+                <option value="paper-xuan">温润宣纸</option>
+                <option value="paper-hemp">敦煌麻纸</option>
+                <option value="paper-indigo">磁青泥金</option>
+                <option value="paper-white">素白印谱</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectJudou" class="block text-[11px] text-stone-600 mb-0.5">句读与标校色</label>
+              <select id="selectJudou" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="vermilion_side" selected>朱笔旁点（句圈读点）</option>
+                <option value="ink_side">墨笔旁点</option>
+                <option value="vermilion_inline">占格朱笔句读</option>
+                <option value="hidden">隐藏句读（纯白文）</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectNoteFlow" class="block text-[11px] text-stone-600 mb-0.5">双行小字排法</label>
+              <select id="selectNoteFlow" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="column_split" selected>传统先右后左（跨格折行）</option>
+                <option value="cell_pair">逐格左右并列</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-stone-700 border-t border-stone-200/80">
+            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+              <input id="chkShowEar" type="checkbox" checked class="accent-amber-800 rounded" /><span>显示书耳</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+              <input id="chkShowProperLine" type="checkbox" checked class="accent-amber-800 rounded" /><span>专名/书名线</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+              <input id="chkShowSeal" type="checkbox" checked class="accent-amber-800 rounded" /><span>钤盖藏书印</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+              <input id="chkShowVolumeHeader" type="checkbox" checked class="accent-amber-800 rounded" /><span>卷端题名</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- SUB-PANEL 4: 书籍封面与牌记深度自定义                                -->
+      <!-- ================================================================= -->
+      <div id="subPanelCover" class="hidden p-3.5 space-y-3.5 bg-[#f6f1e7]">
+        <div class="bg-white border border-stone-300 rounded-xl p-3.5 space-y-3 shadow-2xs">
+          <div class="flex items-center justify-between border-b border-stone-200 pb-2">
+            <span class="font-guji font-bold text-xs text-stone-800 flex items-center gap-1.5">
+              <span>📕</span><span>线装书衣（封面）与题签自定义</span>
+            </span>
+            <button id="btnPreviewCoverNow" type="button" class="text-[11px] px-2.5 py-0.5 rounded bg-[#9e2a2b] text-white font-medium">
+              在右侧实时预览封面
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+            <div>
+              <label for="selectCoverCloth" class="block text-[11px] text-stone-600 mb-0.5">书衣绢锦预设</label>
+              <select id="selectCoverCloth" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="#1c2b3a" selected>磁青暗纹绢</option>
+                <option value="#4a2e1b">栗壳古锦</option>
+                <option value="#8c4a27">赭石宣纸</option>
+                <option value="#7c1d1d">朱砂红绫</option>
+                <option value="#1f2024">玄黑乌金</option>
+                <option value="#cbb07a">松花洒金</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="inputCoverCustomColor" class="block text-[11px] text-stone-600 mb-0.5">自定义颜色</label>
+              <div class="flex items-center gap-1.5">
+                <input id="inputCoverCustomColor" type="color" value="#1c2b3a" class="w-8 h-7 rounded border border-stone-300 cursor-pointer bg-white p-0.5" />
+                <span id="labelCoverHex" class="text-[11px] font-mono text-stone-600">#1c2b3a</span>
+              </div>
+            </div>
+
+            <div>
+              <label for="selectBindingStyle" class="block text-[11px] text-stone-600 mb-0.5">装订形制</label>
+              <select id="selectBindingStyle" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="four_hole" selected>四眼线装</option>
+                <option value="six_hole">六眼线装</option>
+                <option value="wrapped">包背装（无订线）</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectStripPos" class="block text-[11px] text-stone-600 mb-0.5">题签位置</label>
+              <select id="selectStripPos" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="left_top" selected>左上题签</option>
+                <option value="center">居中大题签</option>
+                <option value="right_top">近书脑右题签</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectStripBg" class="block text-[11px] text-stone-600 mb-0.5">题签纸色</label>
+              <select id="selectStripBg" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="#f3e7cf" selected>古旧洒金粉笺</option>
+                <option value="#fbf8f1">素白宣纸</option>
+                <option value="#d94e41">万年红朱笺</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="selectStripBorder" class="block text-[11px] text-stone-600 mb-0.5">题签边框</label>
+              <select id="selectStripBorder" class="w-full bg-stone-50 border border-stone-300 rounded px-2 py-1 text-xs">
+                <option value="double_red" selected>朱丝文武双边</option>
+                <option value="single_ink">乌丝单边</option>
+                <option value="none">无框素签</option>
+              </select>
+            </div>
+
+            <div class="col-span-2">
+              <label for="inputCoverTitle" class="block text-[11px] text-stone-600 mb-0.5">封面题签主书名</label>
+              <input id="inputCoverTitle" type="text" value="增刊校正王狀元集注分類東坡先生詩" class="w-full px-2 py-1 bg-stone-50 border border-stone-300 rounded font-guji text-xs" />
+            </div>
+
+            <div>
+              <label for="inputCoverSubtitle" class="block text-[11px] text-stone-600 mb-0.5">题签副题 / 册次</label>
+              <input id="inputCoverSubtitle" type="text" value="元集 · 第一冊" class="w-full px-2 py-1 bg-stone-50 border border-stone-300 rounded font-guji text-xs" />
+            </div>
+
+            <div class="col-span-2">
+              <label for="inputCoverCalligrapher" class="block text-[11px] text-stone-600 mb-0.5">题签人落款</label>
+              <input id="inputCoverCalligrapher" type="text" value="丙午仲冬芸窗居士題籤" class="w-full px-2 py-1 bg-stone-50 border border-stone-300 rounded font-guji text-xs" />
+            </div>
+
+            <div>
+              <label for="inputCoverSeal" class="block text-[11px] text-stone-600 mb-0.5">题签压脚小印</label>
+              <input id="inputCoverSeal" type="text" value="善本" maxlength="4" class="w-full px-2 py-1 bg-stone-50 border border-stone-300 rounded font-guji text-xs" />
+            </div>
+          </div>
+
+          <div class="pt-1 flex items-center gap-4 text-xs text-stone-700">
+            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+              <input id="chkCoverCorner" type="checkbox" checked class="accent-amber-800 rounded" />
+              <span>显示天头地脚绢本包角</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="bg-white border border-stone-300 rounded-xl p-3.5 space-y-2.5 shadow-2xs">
+          <span class="font-guji font-bold text-xs text-stone-800 flex items-center gap-1.5 border-b border-stone-200 pb-1.5">
+            <span>🪵</span><span>镌刻牌记（扉页木记 / 版权叶）自定义</span>
+          </span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <div>
+              <label for="inputPaijiRight" class="block text-[11px] text-stone-600 mb-0.5">牌记右栏（刊刻纪年）</label>
+              <input id="inputPaijiRight" type="text" value="歲在丙午仲冬重校刊行" class="w-full px-2 py-1 bg-stone-50 border border-stone-300 rounded font-guji text-xs" />
+            </div>
+            <div>
+              <label for="inputPaijiCenter" class="block text-[11px] text-stone-600 mb-0.5">牌记中栏大字正题</label>
+              <input id="inputPaijiCenter" type="text" value="東坡先生詩集注" class="w-full px-2 py-1 bg-stone-50 border border-stone-300 rounded font-guji text-xs" />
+            </div>
+            <div>
+              <label for="inputPaijiLeft" class="block text-[11px] text-stone-600 mb-0.5">牌记左栏（藏板书坊）</label>
+              <input id="inputPaijiLeft" type="text" value="四部叢刊本 · 依宋刻善本重梓" class="w-full px-2 py-1 bg-stone-50 border border-stone-300 rounded font-guji text-xs" />
+            </div>
+            <div>
+              <label for="inputPaijiSeal" class="block text-[11px] text-stone-600 mb-0.5">牌记朱文大印（四字）</label>
+              <input id="inputPaijiSeal" type="text" value="古籍重排" maxlength="4" class="w-full px-2 py-1 bg-stone-50 border border-stone-300 rounded font-guji text-xs" />
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-stone-200 flex flex-wrap items-center gap-3 text-xs">
+            <span class="text-stone-500">整书PDF导出包含：</span>
+            <label class="inline-flex items-center gap-1 cursor-pointer">
+              <input id="chkPdfIncludeCover" type="checkbox" checked class="accent-amber-800 rounded" /><span>线装封面</span>
+            </label>
+            <label class="inline-flex items-center gap-1 cursor-pointer">
+              <input id="chkPdfIncludePaiji" type="checkbox" checked class="accent-amber-800 rounded" /><span>扉页牌记</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Paginated Classical Leaf Stage -->
+    <section class="lg:col-span-7 flex flex-col gap-3">
+      <div class="no-print bg-[#fbf8f3] border border-stone-300 rounded-xl px-3.5 py-2.5 shadow-sm flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-xs text-stone-500 mr-0.5">版面视图：</span>
+          <button id="btnViewSpread" type="button" class="px-2.5 py-1 rounded text-xs font-medium bg-[#9e2a2b] text-white shadow-2xs transition">筒子页全叶（右+版心+左）</button>
+          <button id="btnViewRightHalf" type="button" class="px-2.5 py-1 rounded text-xs font-medium bg-stone-200/80 hover:bg-stone-300/70 text-stone-700 transition">单看右半叶</button>
+          <button id="btnViewLeftHalf" type="button" class="px-2.5 py-1 rounded text-xs font-medium bg-stone-200/80 hover:bg-stone-300/70 text-stone-700 transition">单看左半叶</button>
+          <button id="btnViewPaiji" type="button" class="px-2.5 py-1 rounded text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 transition">书衣题签与牌记</button>
+          <button id="btnViewAllLeaves" type="button" class="px-2.5 py-1 rounded text-xs font-medium bg-stone-200/80 hover:bg-stone-300/70 text-stone-700 transition">整书平铺总览</button>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="badgeHangkuan" class="hidden xl:inline-block text-xs px-2.5 py-0.5 rounded-full bg-amber-900/10 text-amber-950 border border-amber-900/20 font-guji">半叶九行，行十八字</span>
+          <div class="flex items-center gap-1 bg-stone-200/70 p-0.5 rounded-lg border border-stone-300">
+            <button id="btnNextLeaf" type="button" class="px-2.5 py-1 rounded text-xs font-medium bg-white hover:bg-amber-50 text-stone-800 shadow-2xs transition">◀ 下叶</button>
+            <select id="selectJumpLeaf" class="bg-transparent text-xs font-guji font-bold text-stone-800 px-1.5 py-0.5 focus:outline-none cursor-pointer"></select>
+            <button id="btnPrevLeaf" type="button" class="px-2.5 py-1 rounded text-xs font-medium bg-white hover:bg-amber-50 text-stone-800 shadow-2xs transition">上叶 ▶</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-[#2a211b] rounded-xl p-3 sm:p-5 shadow-inner border border-stone-700/70 flex flex-col items-center justify-center min-h-[640px] relative overflow-x-auto">
+        <div id="bookSpreadWrapper" class="w-full flex items-center justify-center"></div>
+
+        <div class="no-print mt-4 w-full flex flex-wrap items-center justify-between gap-2 text-[11px] text-amber-200/75 px-2 border-t border-amber-900/40 pt-2.5">
+          <div class="flex items-center gap-3 flex-wrap">
+            <span>📖 <strong>阅读次序：</strong>自上而下、从右向左</span>
+            <span class="hidden md:inline">|</span>
+            <span><strong class="text-red-400">―</strong> 直线为〈专名号〉</span>
+            <span><strong class="text-red-400">﹏</strong> 波浪线为《书名号》</span>
+            <span><strong class="text-red-400">。、</strong> 为传统句读</span>
+          </div>
+          <div id="leafCharSummary" class="font-mono text-amber-300/80">本叶共 0 字格</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- VIEW 2: GitHub 底层语料库直连 (殆知阁 + CHINESE-POETRY)                -->
+  <!-- ===================================================================== -->
+  <section id="viewCorpus" class="hidden flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-4 py-5 space-y-5">
+    <div class="bg-gradient-to-r from-[#1f2922] via-[#2b3b2e] to-[#1a221d] rounded-2xl p-5 sm:p-6 text-amber-50 border border-emerald-800/60 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded bg-emerald-700 text-white text-xs font-semibold">开源底层语料直连</span>
+          <span class="text-xs text-emerald-200/80">GitHub REST API + jsDelivr CDN 浏览器端直接拉取</span>
+        </div>
+        <h2 class="font-guji text-2xl sm:text-3xl font-bold text-amber-100">殆知阁 & 中华古诗词底层语料库</h2>
+        <p class="text-xs sm:text-sm text-emerald-100/80 max-w-3xl">
+          直接打通 GitHub 上两大核心古典文献开源仓库：<a href="https://github.com/garychowcmu/daizhigev20" target="_blank" rel="noopener noreferrer" class="underline text-amber-300">殆知阁古代文献 (daizhigev20)</a> 与 <a href="https://github.com/chinese-poetry/chinese-poetry" target="_blank" rel="noopener noreferrer" class="underline text-amber-300">中华古诗词数据库 (chinese-poetry)</a>。点击目录即可在线检索并一键导入重排工坊。
+        </p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btnCorpusTabDaizhige" type="button" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-amber-600 text-white shadow">📜 殆知阁古代文献</button>
+        <button id="btnCorpusTabPoetry" type="button" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-black/35 text-amber-100 border border-emerald-700/60 hover:bg-black/50">🏮 中华古诗词库</button>
+      </div>
+    </div>
+
+    <!-- Sub-panel A: 殆知阁浏览器 -->
+    <div id="corpusPanelDaizhige" class="bg-[#fbf8f3] border border-stone-300 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
+        <div class="flex flex-wrap items-center gap-1.5" id="daizhigeRootBtns"></div>
+        <input id="inputDaizhigeFilter" type="text" placeholder="在当前目录中筛选书名..." class="text-xs bg-white border border-stone-300 rounded-md px-3 py-1.5 w-52 focus:outline-none focus:border-amber-700" />
+      </div>
+
+      <div class="flex items-center justify-between text-xs text-stone-600 bg-stone-100 px-3 py-1.5 rounded-lg">
+        <div id="daizhigeBreadcrumb" class="font-mono flex items-center gap-1.5 flex-wrap">当前路径：/</div>
+        <span id="daizhigeStatus" class="text-emerald-800 font-medium">请选择上方部类加载目录</span>
+      </div>
+
+      <div id="daizhigeFileGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[460px] overflow-y-auto p-1"></div>
+    </div>
+
+    <!-- Sub-panel B: Chinese-Poetry 浏览器 -->
+    <div id="corpusPanelPoetry" class="hidden bg-[#fbf8f3] border border-stone-300 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-3">
+        <div class="flex flex-wrap items-center gap-1.5" id="poetryCollectionsBtns"></div>
+        <span id="poetryStatus" class="text-xs text-emerald-800 font-medium">点击上方典籍即可拉取 JSON 分卷</span>
+      </div>
+
+      <div id="poetryFileGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 max-h-[460px] overflow-y-auto p-1"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- VIEW 3: 典籍善本库 (BUILT-IN CLASSICAL SAMPLES)                        -->
+  <!-- ===================================================================== -->
+  <section id="viewCatalog" class="hidden flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-4 py-5 space-y-5">
+    <div class="bg-gradient-to-r from-[#2c1e16] via-[#3d291d] to-[#231710] rounded-2xl p-5 sm:p-6 text-amber-50 border border-amber-800/50 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="space-y-1.5">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded bg-[#9e2a2b] text-amber-50 text-xs font-semibold">内置精校示范善本</span>
+          <span class="text-xs text-amber-300/80">经 · 史 · 子 · 集四部示范样本</span>
+        </div>
+        <h2 class="font-guji text-2xl sm:text-3xl font-bold text-amber-100">专名精校 · 示范古籍善本库</h2>
+        <p class="text-xs sm:text-sm text-amber-200/80 max-w-3xl">
+          内置含完整双行夹注、专名标校与眉批的古典文献示范样本，点击即可一键载入「重排工坊」体验雕版重排与整书 PDF 导出。
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-[#fbf8f3] border border-stone-300 rounded-xl p-4 shadow-sm space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-1.5" id="catalogDivisionBtns">
+          <span class="text-xs font-semibold text-stone-500 mr-1">四部分类：</span>
+          <button type="button" data-div="ALL" class="cat-div-btn px-3 py-1 rounded-md text-xs font-medium bg-[#9e2a2b] text-white">全部典籍</button>
+          <button type="button" data-div="经部" class="cat-div-btn px-3 py-1 rounded-md text-xs font-medium bg-stone-200/80 hover:bg-stone-300 text-stone-800">经部</button>
+          <button type="button" data-div="史部" class="cat-div-btn px-3 py-1 rounded-md text-xs font-medium bg-stone-200/80 hover:bg-stone-300 text-stone-800">史部</button>
+          <button type="button" data-div="子部" class="cat-div-btn px-3 py-1 rounded-md text-xs font-medium bg-stone-200/80 hover:bg-stone-300 text-stone-800">子部</button>
+          <button type="button" data-div="集部" class="cat-div-btn px-3 py-1 rounded-md text-xs font-medium bg-stone-200/80 hover:bg-stone-300 text-stone-800">集部</button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="selectProofStatus" class="text-xs bg-white border border-stone-300 rounded-md px-2.5 py-1.5 text-stone-800">
+            <option value="ALL">全部校次状态</option>
+            <option value="一校">一校</option>
+            <option value="二校">二校</option>
+            <option value="全本">全本</option>
+          </select>
+          <input id="inputCatalogSearch" type="text" placeholder="检索书名、撰者、版本..." class="text-xs bg-white border border-stone-300 rounded-md px-3 py-1.5 w-52 focus:outline-none focus:border-amber-700" />
+        </div>
+      </div>
+    </div>
+
+    <div id="catalogGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- VIEW 4: AGENT SKILL 与版式规范                                          -->
+  <!-- ===================================================================== -->
+  <section id="viewAnatomy" class="hidden flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-4 py-5 space-y-5">
+    <div class="bg-[#fbf8f3] border border-stone-300 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200 pb-3">
+        <div>
+          <h2 class="font-guji text-xl sm:text-2xl font-bold text-stone-900">🤖 配套 Agent Skill（Codex / WorkBuddy / CLI 调用指南）</h2>
+          <p class="text-xs sm:text-sm text-stone-600 mt-1">项目仓库内置 <code class="px-1.5 py-0.5 bg-stone-200 rounded text-[#9e2a2b]">skills/guji-ai-typesetter/</code> 技能包，支持外部 Agent 自动完成古籍文本规范化与排版工程生成。</p>
+        </div>
+        <button id="btnBackToStudioFromGuide" type="button" class="px-3.5 py-2 rounded-lg text-xs font-medium bg-[#9e2a2b] text-white self-start sm:self-auto">返回重排工坊</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div class="p-4 rounded-xl bg-stone-900 text-amber-100 font-mono space-y-2">
+          <div class="text-amber-400 font-sans font-bold"># 1. 文本预处理与规范化 (preprocess_guji.py)</div>
+          <pre class="whitespace-pre-wrap leading-relaxed text-[11px]">python3 skills/guji-ai-typesetter/scripts/preprocess_guji.py \
+  --input raw.txt \
+  --output normalized.txt \
+  --judou --auto-notes --split-volumes</pre>
+        </div>
+        <div class="p-4 rounded-xl bg-stone-900 text-amber-100 font-mono space-y-2">
+          <div class="text-amber-400 font-sans font-bold"># 2. Agent 控制自动排版生成工程 (auto_typeset.py)</div>
+          <pre class="whitespace-pre-wrap leading-relaxed text-[11px]">python3 skills/guji-ai-typesetter/scripts/auto_typeset.py \
+  --input normalized.txt \
+  --title "论语集注" --genre jing_zhushu \
+  --output-json lunyu.guji.json</pre>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+        <div class="p-4 rounded-xl bg-[#f5efe4] border border-stone-300/90 space-y-1.5">
+          <div class="font-guji font-bold text-base text-[#9e2a2b]">一、版框与界行</div>
+          <p class="text-xs text-stone-700 leading-relaxed">支持左右双边上下单边、四周双边（文武边）、四周单边，及乌丝栏/朱丝栏/无界行。</p>
+        </div>
+        <div class="p-4 rounded-xl bg-[#f5efe4] border border-stone-300/90 space-y-1.5">
+          <div class="font-guji font-bold text-base text-[#9e2a2b]">二、版心鱼尾与象鼻</div>
+          <p class="text-xs text-stone-700 leading-relaxed">依据<a href="https://gwh.pku.edu.cn/info/1159/1203.htm" target="_blank" rel="noopener noreferrer" class="underline text-[#9e2a2b]">古籍版式规范</a>还原单/双/花鱼尾及白口、细黑口、大黑口。</p>
+        </div>
+        <div class="p-4 rounded-xl bg-[#f5efe4] border border-stone-300/90 space-y-1.5">
+          <div class="font-guji font-bold text-base text-[#9e2a2b]">三、双行夹注与标校</div>
+          <p class="text-xs text-stone-700 leading-relaxed">遵循同列先右后左跨格折行规则，配合〈专名号〉、《书名号》与朱笔句读。</p>
+        </div>
+        <div class="p-4 rounded-xl bg-[#f5efe4] border border-stone-300/90 space-y-1.5">
+          <div class="font-guji font-bold text-base text-[#9e2a2b]">四、书衣题签与牌记</div>
+          <p class="text-xs text-stone-700 leading-relaxed">可定制磁青/栗壳/朱红书衣、四眼/六眼线装、题签样式与木记牌记叶。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Book Detail Modal -->
+  <div id="modalBookDetail" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-[#fbf8f3] border-2 border-amber-900/60 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto">
+      <div class="flex items-start justify-between gap-3 border-b border-stone-300 pb-3">
+        <div>
+          <span id="modalBookCat" class="text-xs px-2 py-0.5 rounded bg-amber-900/15 text-amber-950 font-medium">集部</span>
+          <h3 id="modalBookTitle" class="font-guji text-xl sm:text-2xl font-bold text-stone-900 mt-1">书名</h3>
+          <p id="modalBookMeta" class="text-xs text-stone-600 mt-0.5">版本与作者</p>
+        </div>
+        <button id="btnCloseModal" type="button" class="w-8 h-8 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-700 flex items-center justify-center font-bold">✕</button>
+      </div>
+      <div class="space-y-3 text-xs sm:text-sm text-stone-800 leading-relaxed font-guji">
+        <div class="p-3.5 rounded-xl bg-[#f3ece0] border border-stone-300">
+          <div class="font-bold text-[#9e2a2b] mb-1">【解题提要】</div>
+          <p id="modalBookSummary"></p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-white border border-stone-300">
+          <div class="font-bold text-stone-800 mb-1">【重排正文预览】</div>
+          <pre id="modalBookExcerpt" class="whitespace-pre-wrap font-guji text-xs text-stone-700 leading-relaxed"></pre>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-stone-200">
+        <button id="btnModalLoadStudio" type="button" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#9e2a2b] hover:bg-[#822021] text-white shadow">
+          载入重排工坊排版此书
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden High-DPI Export Canvas -->
+  <canvas id="exportCanvas" class="hidden"></canvas>
+
+  <script>
+    const CLASSICAL_BOOKS = [
+      {
+        id: 'dongpo_shi',
+        title: '增刊校正王狀元集注分類東坡先生詩',
+        volumes: '二十五卷',
+        division: '集部',
+        subcategory: '集部·別集類',
+        author: '〔宋〕蘇軾撰 題〔宋〕王十朋纂集',
+        edition: '四部叢刊景印宋刻本',
+        proofStatus: '一校',
+        completeness: '全本',
+        wordCount: '684,174字',
+        earTitle: '紀行類',
+        publisher: '四部叢刊宋本',
+        seal: '東坡集注',
+        preset: 'song_sibu',
+        summary: '《增刊校正王狀元集注分類東坡先生詩》二十五卷，宋蘇軾撰，題宋王十朋纂集。此書為南宋坊刻蘇詩分類集注本之一種，將蘇軾詩按門類編排，匯集百家注文。',
+        sampleText: `[卷标:卷一][书耳:紀行類][眉批:宋刻分類集注善本]增刊校正王狀元集注分類東坡先生詩卷之一
+〔宋〕〈禮部尚書〉端明殿學士兼侍讀學士〈蘇軾〉撰
+〔宋〕狀元〈王十朋〉龜齡纂集
+紀行類【此門專錄先生出處行役之詩，首列南行前集諸作】
+辛丑十一月十九日，既與子由別於〈鄭州〉西門之外，馬上賦詩一篇寄之【〈公〉時年二十六，赴〈鳳翔府〉簽判任。〈趙次公〉曰：〈仁宗〉嘉祐六年辛丑，〈公〉應中制科，入第三等，除大理評事、簽書〈鳳翔府〉判官廳公事】。
+不飲胡為醉兀兀，此心已逐歸鞍發【〈次公〉曰：《白氏長慶集》有「不飲胡為醉兀兀」之句】。
+歸人猶自念庭闈，今我何以慰寂寞【〈縯〉曰：〈子由〉西歸侍〈老泉〉於〈京師〉，故云念庭闈也】。
+登高回首坡長，惟見烏帽出復沒。
+苦寒念爾衣裘薄，獨騎瘦馬踏殘月【〈師〉曰：〈賈島〉詩：獨騎瘦馬踏殘月，曉入〈函關〉雪滿山】。
+[卷标:卷二][书耳:古跡類][眉批:卷二古跡門]增刊校正王狀元集注分類東坡先生詩卷之二
+古跡類【錄歷代故都、名勝、祠廟懷古諸作】
+和〈子由〉澠池懷舊【〈公〉自注：往歲馬上賦詩，偶忘其末句，今足成之】
+人生到處知何似，應似飛鴻踏雪泥【〈師〉曰：《傳燈錄》云：如鳥飛空，跡不可尋】。
+泥上偶然留指爪，鴻飛那復計東西。
+老僧已死成新塔，壞壁無由見舊題。
+往日崎嶇還記否，路長人困蹇驢嘶。`
+      },
+      {
+        id: 'suiyuan_shidan',
+        title: '隨園食單',
+        volumes: '一卷',
+        division: '子部',
+        subcategory: '子部·譜錄類',
+        author: '〔清〕袁枚撰',
+        edition: '隨園三十種本',
+        proofStatus: '一校',
+        completeness: '全本',
+        wordCount: '27,503字',
+        earTitle: '須知單',
+        publisher: '小倉山房藏板',
+        seal: '隨園老人',
+        preset: 'qing_langhuan',
+        summary: '《隨園食單》一卷，清袁枚撰。初刊於乾隆五十七年，以文言隨筆詳記南北三百二十六種菜肴飯點及美酒名茶，分須知單、戒單等十四類。',
+        sampleText: `[卷标:卷上][书耳:須知單][眉批:飲食美學之圭臬]隨園食單卷上
+〔清〕〈錢塘〉〈袁枚〉子才撰
+須知單【凡二十則，今錄首四則】
+學問之道，先知而後行，飲食亦然。作《須知單》【〈簡齋〉自注：庖人若不明物性，雖有山珍海錯，亦同嚼蠟】。
+先天須知【一曰選材】
+鰻必〈太湖〉，蟹必〈陽澄〉，豬必〈金華〉，筍必〈天目〉。凡物各有先天，如人各有資稟。
+[卷标:卷下][书耳:戒單][眉批:戒單十四則]隨園食單卷下
+戒單【為政之道，興利不如除弊；飲食亦然，作《戒單》】
+戒外加油【凡肉有本味，不可妄加香油掩其真味】。
+戒耳餐【徒慕燕窩魚翅之虛名，不求烹調之實味，謂之耳餐】。`
+      },
+      {
+        id: 'liji_kuiben',
+        title: '禮記',
+        volumes: '七卷',
+        division: '經部',
+        subcategory: '經部·禮類',
+        author: '〔明〕翁溥校訂',
+        edition: '江戶魁本大字五經本',
+        proofStatus: '二校',
+        completeness: '全本',
+        wordCount: '126,863字',
+        earTitle: '曲禮上',
+        publisher: '江戶魁本五經',
+        seal: '五經正文',
+        preset: 'edo_kui',
+        summary: '《禮記》七卷，明翁溥校訂，僅錄經文四十九篇，白文無注，字大如錢，乃初學誦習之本。',
+        sampleText: `[卷标:卷一][书耳:曲禮上][眉批:魁本大字白文精審]禮記卷之一
+〔明〕〈諸暨〉〈翁溥〉德宏校訂
+曲禮上第一【白文誦習本】
+曲禮曰：毋不敬，儼若思，安定辭，安民哉。
+敖不可長，欲不可從，志不可滿，樂不可極。
+賢者狎而敬之，畏而愛之。愛而知其惡，憎而知其善。積而能散，安安而能遷。
+臨財毋苟得，臨難毋苟免。很毋求勝，分毋求多。疑事毋質，直而勿有。`
+      },
+      {
+        id: 'sanchao_beimeng',
+        title: '三朝北盟會編',
+        volumes: '二百五十卷',
+        division: '史部',
+        subcategory: '史部·紀事本末類',
+        author: '〔宋〕徐夢莘撰',
+        edition: '四庫全書本',
+        proofStatus: '一校',
+        completeness: '全本',
+        wordCount: '566,235字',
+        earTitle: '政宣上帙',
+        publisher: '欽定四庫全書',
+        seal: '文淵閣寶',
+        preset: 'siku_zhusi',
+        summary: '《三朝北盟會編》二百五十卷，宋徐夢莘撰。編年體宋金關係史料匯編，專記徽宗、欽宗、高宗三朝與金國和戰之事。',
+        sampleText: `[卷标:卷一][书耳:政宣上帙][眉批:四庫全書朱絲欄本]欽定四庫全書
+三朝北盟會編卷一
+〔宋〕〈清江〉〈徐夢莘〉商老撰
+政宣上帙一【起政和七年丁酉七月，盡是年十二月】
+自序略曰：靖康之禍，振古所未聞也。推原其端，蓋自政和七年遣使泛海通〈女真〉始，至紹興三十二年〈完顏亮〉授首、〈南北〉復通和好終，凡四十六年之事。`
+      }
+    ];
+
+    const EDITION_PRESETS = {
+      song_sibu: { name: '四部丛刊景印宋刻本', cols: 9, rows: 18, borderStyle: 'lr_double', gridRule: 'wusi', fishtail: 'single_solid', mouth: 'thin_black', paper: 'paper-bamboo', judou: 'vermilion_side', noteFlow: 'column_split', showEar: true, showProperLine: true, showSeal: true },
+      edo_kui: { name: '日本江户时刻魁本大字五经本', cols: 7, rows: 14, borderStyle: 'all_double', gridRule: 'wusi', fishtail: 'double_solid', mouth: 'thick_black', paper: 'paper-xuan', judou: 'vermilion_side', noteFlow: 'column_split', showEar: true, showProperLine: true, showSeal: true },
+      siku_zhusi: { name: '钦定四库全书本（朱丝栏）', cols: 8, rows: 20, borderStyle: 'all_double', gridRule: 'zhusi', fishtail: 'hollow_floral', mouth: 'thin_black', paper: 'paper-xuan', judou: 'vermilion_side', noteFlow: 'column_split', showEar: false, showProperLine: true, showSeal: true },
+      ming_jiajing: { name: '明嘉靖壬子董氏刻本', cols: 10, rows: 19, borderStyle: 'all_single', gridRule: 'wusi', fishtail: 'single_solid', mouth: 'white', paper: 'paper-hemp', judou: 'ink_side', noteFlow: 'column_split', showEar: true, showProperLine: true, showSeal: true },
+      qing_langhuan: { name: '清光绪琅环阁藏板', cols: 9, rows: 18, borderStyle: 'all_double', gridRule: 'wusi', fishtail: 'double_solid', mouth: 'thick_black', paper: 'paper-bamboo', judou: 'vermilion_side', noteFlow: 'column_split', showEar: true, showProperLine: true, showSeal: true },
+      indigo_gold: { name: '内府磁青纸泥金写本', cols: 8, rows: 16, borderStyle: 'all_double', gridRule: 'zhusi', fishtail: 'hollow_floral', mouth: 'thin_black', paper: 'paper-indigo', judou: 'vermilion_side', noteFlow: 'column_split', showEar: false, showProperLine: true, showSeal: false }
+    };
+
+    const AI_PROVIDER_PRESETS = {
+      deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+      openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+      qwen: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+      zhipu: { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
+      ollama: { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5:14b' },
+      custom: { baseUrl: '', model: '' }
+    };
+
+    const DAIZHIGE_ROOTS = ['儒藏', '史藏', '子藏', '集藏', '诗藏', '易藏', '医藏', '艺藏', '道藏', '佛藏'];
+    const POETRY_COLLECTIONS = [
+      { label: '全唐诗', path: '全唐诗', desc: '约5.5万首唐诗JSON' },
+      { label: '宋词', path: '宋词', desc: '约2.1万首宋词JSON' },
+      { label: '诗经', path: '诗经', desc: '诗经三百零五篇' },
+      { label: '楚辞', path: '楚辞', desc: '屈原宋玉等楚辞' },
+      { label: '论语', path: '论语', desc: '论语二十篇' },
+      { label: '四书五经', path: '四书五经', desc: '大学中庸孟子等' },
+      { label: '元曲', path: '元曲', desc: '元代散曲杂剧' },
+      { label: '曹操诗集', path: '曹操诗集', desc: '建安文学曹操诗' },
+      { label: '纳兰性德', path: '纳兰性德', desc: '饮水词全集' }
+    ];
+
+    const SIMP_TO_TRAD_MAP = {
+      '东':'東','苏':'蘇','轼':'軾','状':'狀','诗':'詩','录':'錄','门':'門','专':'專','处':'處','郑':'鄭','赋':'賦','签':'簽','凤':'鳳','应':'應','评':'評','厅':'廳','师':'師','饮':'飲','为':'為','归':'歸','发':'發','犹':'猶','闱':'闈','长':'長','见':'見','乌':'烏','复':'復','没':'沒','韦':'韋','记':'記','头':'頭','无':'無','绂':'紱','怜':'憐','尔':'爾','独':'獨','骑':'騎','马':'馬','残':'殘','贾':'賈','岛':'島','晓':'曉','关':'關','满':'滿','乐':'樂','仆':'僕','凄':'淒','恻':'惻','别':'別','岁':'歲','飘':'飄','灯':'燈','对':'對','畴':'疇','听':'聽','萧':'蕭','遥':'遙','读':'讀','书':'書','怀':'懷','远':'遠','驿':'驛','尝':'嘗','风':'風','闲':'閒','爱':'愛','职':'職','随':'隨','园':'園','单':'單','钱':'錢','须':'須','问':'問','学':'學','辞':'辭','礼':'禮','经':'經','诸':'諸','贤':'賢','恶':'惡','积':'積','迁':'遷','临':'臨','财':'財','难':'難','胜':'勝','质':'質','亲':'親','决':'決','异':'異','说':'說','费':'費','逾':'踰','节':'節','践':'踐','义':'義','训':'訓','争':'爭','讼':'訟','军':'軍','严':'嚴','祷':'禱','给':'給','诚':'誠','庄':'莊','让':'讓','庆':'慶','谢':'謝','与':'與','顾':'顧','箧':'篋','钗':'釵','过':'過','万':'萬','营':'營','斋':'齋','戏':'戲','后':'後','来':'來','尽':'盡','针':'針','线':'線','开':'開','旧':'舊','梦':'夢','贫':'貧','贱':'賤','几':'幾','时':'時','邓':'鄧','词':'詞','缘':'緣','会':'會','终':'終','报':'報','张':'張','颐':'頤','辩':'辯','云':'雲','间':'間','纬':'緯','游':'遊','从':'從','闻':'聞','声':'聲','鸣':'鳴','环':'環','动':'動','折':'折','吴':'吳','龚':'龔','隶':'隸','钦':'欽','库':'庫','编':'編','祸':'禍','盖':'蓋','绍':'紹','兴':'興','颜':'顏','辽':'遼','国':'國','汉':'漢','儿':'兒','药':'藥','号':'號','连':'連','黄':'黃','龙':'龍','贯':'貫','夹':'夾','议':'議','历':'曆','宁':'寧','态':'態','伤':'傷','数':'數','势':'勢','渐':'漸','岭':'嶺','舍':'捨','饭':'飯','丽':'麗','气':'氣','温':'溫','话':'話','欧':'歐','阳':'陽','虽':'雖','续':'續','挽':'輓','诏':'詔','叹':'歎','赏':'賞','隐':'隱','两':'兩','鹤':'鶴','纵':'縱','飞':'飛','盘':'盤','笼':'籠','验':'驗','横':'橫','浅':'淺','绝':'絕','阴':'陰','资':'資','谈':'談','圣':'聖','席':'席','鱼':'魚','杨':'楊','当':'當','贵':'貴','虾':'蝦','题':'題','咏':'詠','构':'構','极':'極','艰':'艱','笔':'筆','赡':'贍','顷':'頃','穷':'窮','车':'車','载':'載','谓':'謂','备':'備','韵':'韻','兰':'蘭','渔':'漁','陆':'陸','树':'樹','苍':'蒼','雾':'霧','蒙':'濛','红':'紅','参':'參','边':'邊','飒':'颯','惊':'驚','绿':'綠','烟':'煙','楼':'樓','宫':'宮','蜡':'蠟','桥':'橋','锁':'鎖','踪':'蹤','适':'適','达':'達','还':'還','将':'將','贼':'賊','赐':'賜','榆':'榆','猎':'獵','条':'條','凭':'憑','杂':'雜','战':'戰','帐':'帳','兵':'兵','轻':'輕','敌':'敵','铁':'鐵','离':'離','妇':'婦','断':'斷','肠':'腸','蓟':'薊','杀':'殺','阵':'陣','传':'傳','纷':'紛','岂':'豈','勋':'勳','场':'場','忆':'憶','齐':'齊','农':'農','种':'種','泽':'澤','叶':'葉','烧':'燒','毕':'畢','齿':'齒','掷':'擲','劳':'勞','谷':'穀','湿':'濕','调':'調','块':'塊','坚':'堅','谚':'諺','锄':'鋤','损':'損','寻':'尋','虚':'虛','实':'實'
+    };
+
+    const state = {
+      activeTab: 'studio',
+      leftSubTab: 'text',
+      corpusSubTab: 'daizhige',
+      viewMode: 'spread',
+      currentLeafIdx: 0,
+      selectedBookId: 'dongpo_shi',
+      catalogDivision: 'ALL',
+      catalogStatus: 'ALL',
+      catalogSearch: '',
+      modalBookId: null,
+      fontFamily: "'Noto Serif TC', 'Noto Serif SC', serif",
+      fontLabel: '思源宋体繁体',
+      fontScale: 100,
+      fontWeight: '600',
+      aiPreset: 'deepseek',
+      aiBaseUrl: 'https://api.deepseek.com/v1',
+      aiModel: 'deepseek-chat',
+      aiKey: '',
+      bookTitle: '增刊校正王狀元集注分類東坡先生詩',
+      bookVolume: '卷一',
+      bookAuthor: '〔宋〕蘇軾撰 王十朋纂集',
+      earTitle: '紀行類',
+      publisher: '四部叢刊宋本',
+      sealText: '東坡集注',
+      coverColor: '#1c2b3a',
+      bindingStyle: 'four_hole',
+      stripPos: 'left_top',
+      stripBg: '#f3e7cf',
+      stripBorder: 'double_red',
+      coverTitle: '增刊校正王狀元集注分類東坡先生詩',
+      coverSubtitle: '元集 · 第一冊',
+      coverCalligrapher: '丙午仲冬芸窗居士題籤',
+      coverSeal: '善本',
+      showCoverCorner: true,
+      paijiRight: '歲在丙午仲冬重校刊行',
+      paijiCenter: '東坡先生詩集注',
+      paijiLeft: '四部叢刊宋本 · 依底本精校重梓',
+      paijiSeal: '古籍重排',
+      pdfIncludeCover: true,
+      pdfIncludePaiji: true,
+      colsPerHalf: 9,
+      rowsPerCol: 18,
+      borderStyle: 'lr_double',
+      gridRule: 'wusi',
+      fishtail: 'single_solid',
+      mouth: 'thin_black',
+      paper: 'paper-bamboo',
+      judou: 'vermilion_side',
+      noteFlow: 'column_split',
+      showEar: true,
+      showProperLine: true,
+      showSeal: true,
+      showVolumeHeader: true,
+      sourceText: CLASSICAL_BOOKS[0].sampleText,
+      daizhigePath: '儒藏',
+      daizhigeItems: [],
+      poetryCollection: '全唐诗',
+      poetryItems: [],
+      leaves: [],
+      detectedVolumes: []
+    };
+
+    function toChineseNum(num) {
+      if (num <= 0) return '零';
+      const digits = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+      if (num <= 10) return num === 10 ? '十' : digits[num];
+      if (num < 20) return '十' + digits[num % 10];
+      if (num < 100) {
+        const tens = Math.floor(num / 10), rem = num % 10;
+        return digits[tens] + '十' + digits[rem];
+      }
+      if (num < 1000) {
+        const h = Math.floor(num / 100), rem = num % 100;
+        if (rem === 0) return digits[h] + '百';
+        if (rem < 10) return digits[h] + '百零' + digits[rem];
+        return digits[h] + '百' + toChineseNum(rem);
+      }
+      return String(num);
+    }
+
+    function showToast(msg, icon = '✨') {
+      const banner = document.getElementById('toastBanner');
+      const iconEl = document.getElementById('toastIcon');
+      const msgEl = document.getElementById('toastMsg');
+      if (!banner) return;
+      iconEl.textContent = icon;
+      msgEl.textContent = msg;
+      banner.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => banner.classList.add('hidden'), 3200);
+    }
+
+    function applyFontToDocument() {
+      document.documentElement.style.setProperty('--guji-font', state.fontFamily);
+      document.documentElement.style.setProperty('--guji-font-scale', String(state.fontScale / 100));
+      const badge = document.getElementById('badgeCurrentFont');
+      if (badge) badge.textContent = `当前：${state.fontLabel}`;
+    }
+
+    function loadAiConfigFromStorage() {
+      try {
+        const saved = localStorage.getItem('yunchuang_guji_ai_cfg');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          state.aiPreset = parsed.aiPreset || 'deepseek';
+          state.aiBaseUrl = parsed.aiBaseUrl || 'https://api.deepseek.com/v1';
+          state.aiModel = parsed.aiModel || 'deepseek-chat';
+          state.aiKey = parsed.aiKey || '';
+          document.getElementById('selectAiPreset').value = state.aiPreset;
+          document.getElementById('inputAiBaseUrl').value = state.aiBaseUrl;
+          document.getElementById('inputAiModel').value = state.aiModel;
+          document.getElementById('inputAiKey').value = state.aiKey;
+        }
+      } catch (e) {}
+    }
+
+    function saveAiConfigToStorage() {
+      state.aiPreset = document.getElementById('selectAiPreset').value;
+      state.aiBaseUrl = document.getElementById('inputAiBaseUrl').value.trim().replace(/\/+$/, '');
+      state.aiModel = document.getElementById('inputAiModel').value.trim();
+      state.aiKey = document.getElementById('inputAiKey').value.trim();
+      try {
+        localStorage.setItem('yunchuang_guji_ai_cfg', JSON.stringify({
+          aiPreset: state.aiPreset, aiBaseUrl: state.aiBaseUrl, aiModel: state.aiModel, aiKey: state.aiKey
+        }));
+        showToast('AI API 配置已保存至本地浏览器', '🔑');
+      } catch (e) {
+        showToast('已应用 AI 配置（本地存储受限）', '🔑');
+      }
+    }
+
+    function parseAndPaginate() {
+      const cols = Number(state.colsPerHalf) || 9;
+      const rows = Number(state.rowsPerCol) || 18;
+      const inlinePunct = state.judou === 'vermilion_inline';
+      const hidePunct = state.judou === 'hidden';
+      const allColumns = [];
+      const detectedVolumes = [];
+      let activeVol = state.bookVolume || '卷一';
+      let activeEar = state.earTitle || '';
+      let currentCol = { cells: [], meipi: '', volume: activeVol, earTitle: activeEar, isVolStartCol: false };
+
+      function pushCurrentCol(padEmpty = true) {
+        if (padEmpty) while (currentCol.cells.length < rows) currentCol.cells.push({ type: 'empty' });
+        allColumns.push(currentCol);
+        currentCol = { cells: [], meipi: '', volume: activeVol, earTitle: activeEar, isVolStartCol: false };
+      }
+
+      function flushToNewLeafBoundary() {
+        if (currentCol.cells.length > 0) pushCurrentCol(true);
+        const colsPerLeaf = cols * 2;
+        while (allColumns.length % colsPerLeaf !== 0) {
+          allColumns.push({ cells: Array.from({ length: rows }, () => ({ type: 'empty' })), meipi: '', volume: activeVol, earTitle: activeEar, isVolStartCol: false });
+        }
+      }
+
+      function ensureCellSpace() {
+        if (currentCol.cells.length >= rows) pushCurrentCol(false);
+      }
+
+      const rawLines = state.sourceText.replace(/\r\n/g, '\n').split('\n');
+      for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
+        let line = rawLines[lineIdx];
+        if (line.trim() === '§') {
+          if (currentCol.cells.length > 0) pushCurrentCol(true);
+          while (allColumns.length % cols !== 0) {
+            allColumns.push({ cells: Array.from({ length: rows }, () => ({ type: 'empty' })), meipi: '', volume: activeVol, earTitle: activeEar, isVolStartCol: false });
+          }
+          continue;
+        }
+        let isVolumeTitleLine = false;
+        line = line.replace(/\[卷[标標][:：]([^\]]+)\]/g, (_, volName) => {
+          const cleanVol = volName.trim();
+          if (allColumns.length > 0 || currentCol.cells.length > 0) flushToNewLeafBoundary();
+          activeVol = cleanVol;
+          currentCol.volume = activeVol;
+          currentCol.isVolStartCol = true;
+          isVolumeTitleLine = true;
+          detectedVolumes.push({ volume: activeVol, leafIdx: Math.floor(allColumns.length / (cols * 2)) });
+          return '';
+        });
+        line = line.replace(/\[[书書]耳[:：]([^\]]+)\]/g, (_, earName) => { activeEar = earName.trim(); currentCol.earTitle = activeEar; return ''; });
+        line = line.replace(/\[眉批[:：]([^\]]+)\]/g, (_, comment) => { currentCol.meipi = (currentCol.meipi ? currentCol.meipi + '　' : '') + comment.trim(); return ''; });
+
+        if (line.trim().length === 0) {
+          if (currentCol.cells.length > 0) pushCurrentCol(true);
+          continue;
+        }
+
+        let i = 0, inProper = false, inBook = false, inDynasty = false;
+        const isFirstTitleLine = state.showVolumeHeader && (lineIdx === 0 || isVolumeTitleLine);
+        const isAuthorLine = state.showVolumeHeader && (line.startsWith('〔') && (line.includes('撰') || line.includes('集') || line.includes('注') || line.includes('校')));
+        if (isAuthorLine && currentCol.cells.length === 0) currentCol.cells.push({ type: 'empty' }, { type: 'empty' });
+
+        while (i < line.length) {
+          const ch = line[i];
+          if (ch === '§') {
+            if (currentCol.cells.length > 0) pushCurrentCol(true);
+            while (allColumns.length % cols !== 0) allColumns.push({ cells: Array.from({ length: rows }, () => ({ type: 'empty' })), meipi: '', volume: activeVol, earTitle: activeEar, isVolStartCol: false });
+            i++; continue;
+          }
+          if (ch === '〈') { inProper = true; i++; continue; }
+          if (ch === '〉') { inProper = false; i++; continue; }
+          if (ch === '《') { inBook = true; i++; continue; }
+          if (ch === '》') { inBook = false; i++; continue; }
+          if (ch === '〔') { inDynasty = true; i++; continue; }
+          if (ch === '〕') { inDynasty = false; i++; continue; }
+          if (ch === '“' || ch === '「') { if (!hidePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '﹁', isPunctCell: true }); } i++; continue; }
+          if (ch === '”' || ch === '」') { if (!hidePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '﹂', isPunctCell: true }); } i++; continue; }
+
+          if (ch === '【') {
+            const closeIdx = line.indexOf('】', i + 1);
+            const noteRaw = closeIdx !== -1 ? line.slice(i + 1, closeIdx) : line.slice(i + 1);
+            i = closeIdx !== -1 ? closeIdx + 1 : line.length;
+            const smallItems = [];
+            let sProper = false, sBook = false;
+            for (let k = 0; k < noteRaw.length; k++) {
+              const sc = noteRaw[k];
+              if (sc === '〈') { sProper = true; continue; }
+              if (sc === '〉') { sProper = false; continue; }
+              if (sc === '《') { sBook = true; continue; }
+              if (sc === '》') { sBook = false; continue; }
+              if ('“”「」『』'.includes(sc)) continue;
+              if ('。！？；'.includes(sc)) { if (!hidePunct && smallItems.length > 0) smallItems[smallItems.length - 1].judou = '。'; continue; }
+              if ('，、：'.includes(sc)) { if (!hidePunct && smallItems.length > 0) smallItems[smallItems.length - 1].judou = '、'; continue; }
+              smallItems.push({ char: sc, proper: sProper, bookTitle: sBook, judou: '' });
+            }
+            let ptr = 0;
+            while (ptr < smallItems.length) {
+              ensureCellSpace();
+              const availInCol = rows - currentCol.cells.length;
+              const segCells = Math.min(availInCol, Math.ceil((smallItems.length - ptr) / 2));
+              if (state.noteFlow === 'column_split') {
+                const chunk = smallItems.slice(ptr, ptr + segCells * 2);
+                const rightCount = Math.ceil(chunk.length / 2);
+                for (let r = 0; r < segCells; r++) {
+                  const rItem = chunk[r] || { char: '　', judou: '' };
+                  const lItem = chunk[rightCount + r] || { char: '　', judou: '' };
+                  currentCol.cells.push({ type: 'dual', rightChar: rItem.char, leftChar: lItem.char, rightProper: rItem.proper, leftProper: lItem.proper, rightBook: rItem.bookTitle, leftBook: lItem.bookTitle, rightJudou: rItem.judou, leftJudou: lItem.judou });
+                }
+                ptr += segCells * 2;
+              } else {
+                for (let r = 0; r < segCells; r++) {
+                  const rItem = smallItems[ptr] || { char: '　', judou: '' };
+                  const lItem = smallItems[ptr + 1] || { char: '　', judou: '' };
+                  currentCol.cells.push({ type: 'dual', rightChar: rItem.char, leftChar: lItem.char, rightProper: rItem.proper, leftProper: lItem.proper, rightBook: rItem.bookTitle, leftBook: lItem.bookTitle, rightJudou: rItem.judou, leftJudou: lItem.judou });
+                  ptr += 2;
+                }
+              }
+            }
+            continue;
+          }
+
+          if ('。！？；'.includes(ch)) {
+            if (!hidePunct) {
+              if (inlinePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '。', isPunctCell: true }); }
+              else if (currentCol.cells.length > 0) {
+                const prev = currentCol.cells[currentCol.cells.length - 1];
+                if (prev.type === 'main') prev.judou = '。'; else if (prev.type === 'dual') prev.leftJudou = '。';
+              }
+            }
+            i++; continue;
+          }
+          if ('，、：'.includes(ch)) {
+            if (!hidePunct) {
+              if (inlinePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '、', isPunctCell: true }); }
+              else if (currentCol.cells.length > 0) {
+                const prev = currentCol.cells[currentCol.cells.length - 1];
+                if (prev.type === 'main') prev.judou = '、'; else if (prev.type === 'dual') prev.leftJudou = '、';
+              }
+            }
+            i++; continue;
+          }
+
+          ensureCellSpace();
+          currentCol.cells.push({ type: 'main', char: ch, proper: inProper, bookTitle: inBook, dynastyTag: inDynasty, judou: '', isInkBlock: ch === '■', isHeader: isFirstTitleLine });
+          i++;
+        }
+        if (currentCol.cells.length > 0) pushCurrentCol(true);
+      }
+
+      if (currentCol.cells.length > 0) pushCurrentCol(true);
+      if (allColumns.length === 0) pushCurrentCol(true);
+
+      const colsPerLeaf = cols * 2;
+      const leaves = [];
+      let currentVolForPageCount = '', volPageCounter = 0;
+
+      for (let c = 0; c < allColumns.length; c += colsPerLeaf) {
+        const rightCols = [], leftCols = [];
+        for (let k = 0; k < cols; k++) rightCols.push(allColumns[c + k] || { cells: Array.from({ length: rows }, () => ({ type: 'empty' })), meipi: '', volume: activeVol, earTitle: activeEar });
+        for (let k = 0; k < cols; k++) leftCols.push(allColumns[c + cols + k] || { cells: Array.from({ length: rows }, () => ({ type: 'empty' })), meipi: '', volume: activeVol, earTitle: activeEar });
+        const leafVol = rightCols[0]?.volume || state.bookVolume;
+        const leafEar = rightCols[0]?.earTitle || state.earTitle;
+        if (leafVol !== currentVolForPageCount) { currentVolForPageCount = leafVol; volPageCounter = 1; } else { volPageCounter++; }
+        leaves.push({ leafNumber: leaves.length + 1, volLeafNumber: volPageCounter, volume: leafVol, earTitle: leafEar, isVolStart: volPageCounter === 1, rightCols, leftCols });
+      }
+      if (detectedVolumes.length === 0) detectedVolumes.push({ volume: state.bookVolume || '卷一', leafIdx: 0 });
+      state.leaves = leaves;
+      state.detectedVolumes = detectedVolumes;
+      if (state.currentLeafIdx >= leaves.length) state.currentLeafIdx = Math.max(0, leaves.length - 1);
+    }
+
+    function buildFishtailSvg(type, isBottom, isIndigo) {
+      if (type === 'none') return '';
+      const fill = isIndigo ? '#e6c675' : '#1e1815';
+      if (type === 'hollow_floral') {
+        if (!isBottom) return `<svg viewBox="0 0 40 28" class="w-full h-6"><line x1="2" y1="2" x2="38" y2="2" stroke="${fill}" stroke-width="2"/><line x1="2" y1="6" x2="38" y2="6" stroke="${fill}" stroke-width="1"/><polygon points="2,9 38,9 38,26 20,16 2,26" fill="none" stroke="${fill}" stroke-width="1.8"/><circle cx="20" cy="12.5" r="2" fill="${fill}"/></svg>`;
+        return `<svg viewBox="0 0 40 28" class="w-full h-6"><polygon points="2,2 20,12 38,2 38,19 2,19" fill="none" stroke="${fill}" stroke-width="1.8"/><line x1="2" y1="22" x2="38" y2="22" stroke="${fill}" stroke-width="1"/><line x1="2" y1="26" x2="38" y2="26" stroke="${fill}" stroke-width="2"/></svg>`;
+      }
+      if (!isBottom) return `<svg viewBox="0 0 40 26" class="w-full h-5"><rect x="1" y="1" width="38" height="3.2" fill="${fill}"/><polygon points="1,6.5 39,6.5 39,25 20,14 1,25" fill="${fill}"/></svg>`;
+      return `<svg viewBox="0 0 40 26" class="w-full h-5"><polygon points="1,1 20,12 39,1 39,19.5 1,19.5" fill="${fill}"/><rect x="1" y="22" width="38" height="3.2" fill="${fill}"/></svg>`;
+    }
+
+    function buildCoverAndPaijiHtml() {
+      const isIndigo = state.paper === 'paper-indigo';
+      const frameColor = isIndigo ? '#e6c675' : '#1d1612';
+      const coverBg = state.coverColor || '#1c2b3a';
+      const holesCount = state.bindingStyle === 'six_hole' ? 6 : 4;
+      const holesHtml = Array.from({ length: holesCount }, () => `<div class="w-full h-[2px] bg-amber-100/80 shadow-xs"></div>`).join('');
+      const stripPosClass = state.stripPos === 'center' ? 'self-center mx-auto my-auto' : state.stripPos === 'right_top' ? 'self-start mt-6 mr-4' : 'self-start mt-6 ml-5';
+      const stripBorderCss = state.stripBorder === 'double_red' ? 'border: 2.5px double #9e2a2b;' : state.stripBorder === 'single_ink' ? 'border: 1.5px solid #1e1815;' : 'border: 1px solid transparent;';
+      const stripTextColor = state.stripBg === '#d94e41' ? '#1a110d' : '#1e1815';
+      const cornerHtml = state.showCoverCorner ? `<div class="absolute top-0 right-6 w-7 h-7 bg-amber-100/20 border-b border-l border-amber-200/35 pointer-events-none"></div><div class="absolute bottom-0 right-6 w-7 h-7 bg-amber-100/20 border-t border-l border-amber-200/35 pointer-events-none"></div>` : '';
+      const paijiSealChars = (state.paijiSeal || '古籍重排').slice(0, 4).padEnd(4, '印');
+
+      return `
+        <div class="w-full max-w-[940px] grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+          <div class="rounded-xs p-5 min-h-[520px] relative shadow-2xl flex flex-row-reverse justify-between border border-amber-900/50 overflow-hidden" style="background-color:${coverBg}; background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 0); background-size: 16px 16px;">
+            ${cornerHtml}
+            ${state.bindingStyle !== 'wrapped' ? `<div class="w-7 border-l border-amber-100/30 flex flex-col justify-between py-9 items-center relative">${holesHtml}</div>` : `<div class="w-2"></div>`}
+            <div class="${stripPosClass} p-1.5 shadow-lg border border-stone-700/40" style="background-color:${state.stripBg};">
+              <div class="px-3 py-4 flex flex-row-reverse items-center gap-2.5 min-h-[320px]" style="${stripBorderCss} color:${stripTextColor};">
+                ${state.coverSubtitle ? `<div class="font-guji text-xs font-semibold tracking-widest self-start pt-1 opacity-85" style="writing-mode: vertical-rl;">${state.coverSubtitle}</div>` : ''}
+                <div class="font-guji font-bold text-lg sm:text-xl tracking-widest py-1" style="writing-mode: vertical-rl; max-height: 295px;">${state.coverTitle || state.bookTitle}</div>
+                <div class="flex flex-col items-center justify-end self-end gap-2 pt-4">
+                  ${state.coverCalligrapher ? `<div class="font-guji text-[10px] tracking-wider opacity-80" style="writing-mode: vertical-rl; max-height: 180px;">${state.coverCalligrapher}</div>` : ''}
+                  ${state.coverSeal ? `<div class="seal-stamp px-1 py-0.5 text-[10px] font-bold">${state.coverSeal}</div>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="${state.paper} p-7 min-h-[520px] shadow-2xl flex flex-col justify-between relative border border-stone-400">
+            <div class="text-center text-[11px] opacity-65 font-guji">天頭留白 · 鐫刻牌記葉（扉頁木記）</div>
+            <div class="flex-1 my-2 border-[3.5px] p-1.5 flex" style="border-color:${frameColor};">
+              <div class="flex-1 border p-5 flex flex-row-reverse items-center justify-between font-guji" style="border-color:${frameColor};">
+                <div class="h-full flex items-center justify-center text-base font-bold tracking-widest border-l pl-4 text-center" style="writing-mode: vertical-rl; border-color:${frameColor};">${state.paijiRight || '歲在丙午仲冬重校刊行'}</div>
+                <div class="h-full flex flex-col items-center justify-center gap-4 px-2">
+                  <div class="text-2xl sm:text-3xl font-black tracking-widest text-center" style="writing-mode: vertical-rl; max-height: 290px;">${state.paijiCenter || state.bookTitle}</div>
+                  <div class="w-12 h-12 seal-stamp-inverse grid grid-cols-2 grid-rows-2 items-center justify-items-center text-xs font-bold p-1">
+                    <span>${paijiSealChars[2]}</span><span>${paijiSealChars[0]}</span>
+                    <span>${paijiSealChars[3]}</span><span>${paijiSealChars[1]}</span>
+                  </div>
+                </div>
+                <div class="h-full flex items-center justify-center text-base font-bold tracking-widest border-r pr-4 text-center" style="writing-mode: vertical-rl; border-color:${frameColor};">${state.paijiLeft || state.publisher}</div>
+              </div>
+            </div>
+            <div class="text-center text-[11px] opacity-65 font-guji">地腳留白 · 書牌（木記）</div>
+          </div>
+        </div>`;
+    }
+
+    function renderHalfLeafColsHtml(colsArray, isRightHalf, leafObj) {
+      const isIndigo = state.paper === 'paper-indigo';
+      const ruleColor = state.gridRule === 'zhusi' ? (isIndigo ? 'rgba(230, 198, 117, 0.45)' : 'rgba(180, 42, 38, 0.55)') : state.gridRule === 'wusi' ? (isIndigo ? 'rgba(230, 198, 117, 0.35)' : 'rgba(35, 25, 20, 0.55)') : 'transparent';
+      const judouColor = state.judou.startsWith('vermilion') ? (isIndigo ? '#ff7b72' : '#c92a2a') : (isIndigo ? '#e6c675' : '#1e1815');
+      const properLineColor = isIndigo ? '#e6c675' : '#9e2a2b';
+      const fontScale = (Number(state.fontScale) || 100) / 100;
+      const fontWeight = state.fontWeight || '600';
+
+      let colsHtml = '';
+      colsArray.forEach((colObj, colIdx) => {
+        const borderLeftStyle = colIdx < colsArray.length - 1 && state.gridRule !== 'none' ? `border-left: 1px solid ${ruleColor};` : '';
+        const meipiHtml = colObj.meipi ? `<div class="absolute -top-11 left-1/2 -translate-x-1/2 font-guji text-[10px] leading-tight text-[#b92b27] tracking-tighter select-none" style="writing-mode: vertical-rl; max-height: 40px; overflow: hidden;" title="${colObj.meipi}">${colObj.meipi}</div>` : '';
+        let cellsHtml = '';
+        colObj.cells.forEach((cell) => {
+          if (cell.type === 'empty') {
+            cellsHtml += `<div class="w-full flex-1 flex items-center justify-center select-none">&nbsp;</div>`;
+          } else if (cell.type === 'main') {
+            const isProper = state.showProperLine && cell.proper;
+            const isBook = state.showProperLine && cell.bookTitle;
+            const properStyle = isProper ? `border-left: 1.6px solid ${properLineColor};` : '';
+            const bookClass = isBook ? 'book-title-wave' : '';
+            const cellScale = cell.isHeader ? fontScale * 1.06 : cell.dynastyTag ? fontScale * 0.86 : fontScale;
+            const cellWeight = cell.isHeader ? '900' : fontWeight;
+            const judouBadge = cell.judou ? `<span class="absolute right-[1px] bottom-[-2px] font-bold leading-none pointer-events-none select-none" style="color:${judouColor}; font-size:0.68em;">${cell.judou}</span>` : '';
+            const charDisplay = cell.isInkBlock ? `<span class="inline-block w-[0.75em] h-[0.78em] bg-current rounded-[1px]"></span>` : cell.isPunctCell ? `<span style="color:${judouColor};">${cell.char}</span>` : cell.char;
+            cellsHtml += `<div class="relative w-full flex-1 flex items-center justify-center font-guji ${bookClass}" style="${properStyle} font-weight:${cellWeight}; transform: scale(${cellScale});"><span class="leading-none">${charDisplay}</span>${judouBadge}</div>`;
+          } else if (cell.type === 'dual') {
+            const rJudou = cell.rightJudou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${cell.rightJudou}</span>` : '';
+            const lJudou = cell.leftJudou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${cell.leftJudou}</span>` : '';
+            const rProper = state.showProperLine && cell.rightProper ? `border-left: 1px solid ${properLineColor};` : '';
+            const lProper = state.showProperLine && cell.leftProper ? `border-left: 1px solid ${properLineColor};` : '';
+            cellsHtml += `<div class="relative w-full flex-1 flex flex-row-reverse items-center justify-around font-guji px-[1px]" style="font-weight:${fontWeight};"><div class="relative w-1/2 h-full flex items-center justify-center text-[0.56em] leading-none" style="${rProper}"><span>${cell.rightChar}</span>${rJudou}</div><div class="relative w-1/2 h-full flex items-center justify-center text-[0.56em] leading-none" style="${lProper}"><span>${cell.leftChar}</span>${lJudou}</div></div>`;
+          }
+        });
+        let sealHtml = '';
+        if (state.showSeal && leafObj.isVolStart && isRightHalf && colIdx === 0) {
+          const sealChars = (state.sealText || '芸窗珍藏').slice(0, 4).padEnd(4, '印');
+          sealHtml = `<div class="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 w-9 h-9 p-0.5 rounded-[2px] seal-stamp grid grid-cols-2 grid-rows-2 items-center justify-items-center text-[11px] font-bold opacity-90 rotate-[-2deg] shadow-2xs pointer-events-none"><span>${sealChars[2] || '珍'}</span><span>${sealChars[0] || '芸'}</span><span>${sealChars[3] || '藏'}</span><span>${sealChars[1] || '窗'}</span></div>`;
+        }
+        colsHtml += `<div class="relative flex-1 h-full flex flex-col justify-between py-1" style="${borderLeftStyle}">${meipiHtml}${cellsHtml}${sealHtml}</div>`;
+      });
+      return colsHtml;
+    }
+
+    function buildSingleLeafHtml(leaf, viewModeOverride = null) {
+      const mode = viewModeOverride || state.viewMode;
+      const cols = Number(state.colsPerHalf) || 9;
+      const rows = Number(state.rowsPerCol) || 18;
+      const isIndigo = state.paper === 'paper-indigo';
+      const frameColor = isIndigo ? '#e6c675' : '#1d1612';
+      const cellFontPx = rows <= 14 ? 21 : rows <= 18 ? 18 : rows <= 21 ? 15.5 : 14;
+      const colWidthPx = rows <= 14 ? 38 : rows <= 18 ? 33 : 29;
+      const leafBodyHeightPx = 500;
+      const outerTopBottom = state.borderStyle === 'all_single' ? '2px' : '4px';
+      const outerLeftRight = state.borderStyle === 'all_single' ? '2px' : '4px';
+      const hasInnerAll = state.borderStyle === 'all_double';
+      const hasInnerLR = state.borderStyle === 'lr_double' || state.borderStyle === 'all_double';
+      const innerBorderCss = `border-top:${hasInnerAll ? '1.2px' : '0px'} solid ${frameColor}; border-bottom:${hasInnerAll ? '1.2px' : '0px'} solid ${frameColor}; border-left:${hasInnerLR ? '1.2px' : '0px'} solid ${frameColor}; border-right:${hasInnerLR ? '1.2px' : '0px'} solid ${frameColor};`;
+      const trunkHtml = state.mouth === 'white' ? `<div class="flex-1"></div>` : state.mouth === 'thick_black' ? `<div class="flex-1 w-2.5 mx-auto" style="background:${frameColor};"></div>` : `<div class="flex-1 w-[1.5px] mx-auto" style="background:${frameColor};"></div>`;
+
+      const banxinHtml = `
+        <div class="w-11 shrink-0 h-full flex flex-col items-center justify-between border-x select-none font-guji" style="border-color:${frameColor};">
+          <div class="h-10 w-full flex flex-col">${trunkHtml}</div>
+          <div class="py-1 text-[11px] font-bold tracking-tighter leading-none text-center overflow-hidden" style="writing-mode: vertical-rl; max-height: 120px;">${state.bookTitle.slice(0, 8)}</div>
+          <div class="w-full">${buildFishtailSvg(state.fishtail, false, isIndigo)}</div>
+          <div class="flex-1 py-2 flex flex-col items-center justify-center gap-2 text-[11px] font-semibold" style="writing-mode: vertical-rl;"><span>${leaf.volume || state.bookVolume}</span><span>第${toChineseNum(leaf.volLeafNumber)}葉</span></div>
+          <div class="w-full">${state.fishtail === 'double_solid' || state.fishtail === 'hollow_floral' ? buildFishtailSvg(state.fishtail, true, isIndigo) : ''}</div>
+          <div class="py-1.5 text-[10px] opacity-85 tracking-tighter" style="writing-mode: vertical-rl; max-height: 75px;">${state.publisher.slice(0, 6)}</div>
+          <div class="h-8 w-full flex flex-col">${trunkHtml}</div>
+        </div>`;
+
+      const earText = leaf.earTitle || state.earTitle;
+      const rightEarHtml = state.showEar && earText ? `<div class="absolute -right-[26px] top-6 w-[26px] py-2 border-2 border-l-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl;">${earText.slice(0, 4)}</div>` : '';
+      const leftEarHtml = state.showEar && earText && mode === 'left_half' ? `<div class="absolute -left-[26px] top-6 w-[26px] py-2 border-2 border-r-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl;">${earText.slice(0, 4)}</div>` : '';
+      const showRight = mode === 'spread' || mode === 'right_half' || mode === 'all_leaves';
+      const showLeft = mode === 'spread' || mode === 'left_half' || mode === 'all_leaves';
+      const halfWidth = cols * colWidthPx;
+
+      return `
+        <div class="${state.paper} rounded-[2px] shadow-2xl px-7 sm:px-9 pt-12 pb-7 relative transition-all print-page-break">
+          <div class="no-print absolute top-2.5 left-8 right-8 flex justify-between text-[10px] opacity-45 font-guji pointer-events-none"><span>左半葉（後半葉）</span><span>天頭（書眉）· 全書第${toChineseNum(leaf.leafNumber)}葉</span><span>右半葉（前半葉）</span></div>
+          <div class="relative p-[3px]" style="border-top:${outerTopBottom} solid ${frameColor}; border-bottom:${outerTopBottom} solid ${frameColor}; border-left:${outerLeftRight} solid ${frameColor}; border-right:${outerLeftRight} solid ${frameColor};">
+            ${rightEarHtml}${leftEarHtml}
+            <div class="flex flex-row-reverse items-stretch" style="height:${leafBodyHeightPx}px; font-size:${cellFontPx}px; ${innerBorderCss}">
+              ${showRight ? `<div class="flex flex-row-reverse h-full" style="width:${halfWidth}px;">${renderHalfLeafColsHtml(leaf.rightCols, true, leaf)}</div>` : ''}
+              ${banxinHtml}
+              ${showLeft ? `<div class="flex flex-row-reverse h-full" style="width:${halfWidth}px;">${renderHalfLeafColsHtml(leaf.leftCols, false, leaf)}</div>` : ''}
+            </div>
+          </div>
+          <div class="no-print mt-2 flex justify-between text-[10px] opacity-45 font-guji pointer-events-none"><span>${state.bookTitle} · ${leaf.volume}</span><span>地腳</span><span>${state.publisher}</span></div>
+        </div>`;
+    }
+
+    function renderVolumePills() {
+      const container = document.getElementById('volumePillsContainer');
+      if (!container) return;
+      container.innerHTML = state.detectedVolumes.map((v) => {
+        const isCurrent = state.leaves[state.currentLeafIdx]?.volume === v.volume;
+        return `<button type="button" data-vol-leaf="${v.leafIdx}" class="vol-jump-btn px-2 py-0.5 rounded text-[11px] font-guji transition ${isCurrent ? 'bg-[#9e2a2b] text-white font-semibold' : 'bg-white hover:bg-amber-50 text-stone-700 border border-stone-300'}">${v.volume}</button>`;
+      }).join('');
+    }
+
+    function renderCurrentLeaf() {
+      parseAndPaginate();
+      applyFontToDocument();
+      const wrapper = document.getElementById('bookSpreadWrapper');
+      const cols = Number(state.colsPerHalf) || 9;
+      const rows = Number(state.rowsPerCol) || 18;
+      const leaf = state.leaves[state.currentLeafIdx] || state.leaves[0];
+      const totalLeaves = state.leaves.length;
+
+      document.getElementById('labelColsVal').textContent = `${cols} 行`;
+      document.getElementById('labelRowsVal').textContent = `${rows} 字`;
+      document.getElementById('badgeHangkuan').textContent = `半叶${toChineseNum(cols)}行，行${toChineseNum(rows)}字，小字双行行${toChineseNum(rows)}字`;
+
+      const jumpSelect = document.getElementById('selectJumpLeaf');
+      if (jumpSelect) {
+        jumpSelect.innerHTML = state.leaves.map((l, idx) =>
+          `<option value="${idx}" ${idx === state.currentLeafIdx ? 'selected' : ''}>${l.volume}·第${toChineseNum(l.volLeafNumber)}叶 (${l.leafNumber}/${totalLeaves})</option>`
+        ).join('');
+      }
+      renderVolumePills();
+      const rawCharCount = state.sourceText.replace(/\s+/g, '').length;
+      document.getElementById('editorCharStats').textContent = `全书 ${rawCharCount.toLocaleString()} 字 · 共 ${totalLeaves} 叶`;
+      document.getElementById('leafCharSummary').textContent = `当前：${leaf.volume} 第${toChineseNum(leaf.volLeafNumber)}叶（全书 ${leaf.leafNumber}/${totalLeaves} 叶） · 半叶 ${cols}×${rows}`;
+
+      if (state.viewMode === 'paiji') { wrapper.innerHTML = buildCoverAndPaijiHtml(); return; }
+      if (state.viewMode === 'all_leaves') {
+        const allLeavesHtml = state.leaves.map((lf) => buildSingleLeafHtml(lf, 'spread')).join('');
+        wrapper.innerHTML = `<div class="w-full flex flex-col items-center gap-8 py-2">${buildCoverAndPaijiHtml()}${allLeavesHtml}</div>`;
+        return;
+      }
+      wrapper.innerHTML = buildSingleLeafHtml(leaf, state.viewMode);
+    }
+
+    function getCanvasMetrics() {
+      const cols = Number(state.colsPerHalf) || 9;
+      const rows = Number(state.rowsPerCol) || 18;
+      const colW = 42, cellH = Math.floor(620 / rows), bodyH = cellH * rows, banxinW = 54, halfW = colW * cols, totalBodyW = halfW * 2 + banxinW;
+      const padX = 64, padTop = 88, padBottom = 46;
+      return { cols, rows, colW, cellH, bodyH, banxinW, halfW, totalBodyW, padX, padTop, padBottom, fullW: totalBodyW + padX * 2, fullH: bodyH + padTop + padBottom };
+    }
+
+    function drawCoverSpreadOnCanvas(canvas) {
+      const m = getCanvasMetrics();
+      const scale = 2; canvas.width = m.fullW * scale; canvas.height = m.fullH * scale;
+      const ctx = canvas.getContext('2d'); ctx.save(); ctx.scale(scale, scale);
+      const paperColors = { 'paper-bamboo': '#f3e8d2', 'paper-xuan': '#faf6ee', 'paper-hemp': '#e6d3b3', 'paper-indigo': '#1b2838', 'paper-white': '#ffffff' };
+      ctx.fillStyle = paperColors[state.paper] || '#f3e8d2'; ctx.fillRect(0, 0, m.fullW, m.fullH);
+      const rightStartX = m.fullW / 2 + 10, coverW = m.fullW / 2 - 40, coverH = m.fullH - 60, coverY = 30;
+      ctx.fillStyle = state.coverColor || '#1c2b3a'; ctx.fillRect(rightStartX, coverY, coverW, coverH);
+      ctx.strokeStyle = 'rgba(212,175,55,0.4)'; ctx.lineWidth = 2; ctx.strokeRect(rightStartX, coverY, coverW, coverH);
+      if (state.bindingStyle !== 'wrapped') {
+        const spineX = rightStartX + coverW - 34;
+        ctx.strokeStyle = 'rgba(255,248,230,0.45)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(spineX, coverY); ctx.lineTo(spineX, coverY + coverH); ctx.stroke();
+        const holes = state.bindingStyle === 'six_hole' ? 6 : 4;
+        const step = (coverH - 120) / (holes - 1);
+        ctx.strokeStyle = '#f5eedc'; ctx.lineWidth = 2.8;
+        for (let h = 0; h < holes; h++) { const hy = coverY + 60 + h * step; ctx.beginPath(); ctx.moveTo(spineX, hy); ctx.lineTo(rightStartX + coverW, hy); ctx.stroke(); }
+      }
+      const stripW = 92, stripH = Math.min(390, coverH - 80);
+      const stripX = state.stripPos === 'center' ? rightStartX + (coverW - stripW) / 2 : state.stripPos === 'right_top' ? rightStartX + coverW - stripW - 55 : rightStartX + 36;
+      const stripY = state.stripPos === 'center' ? coverY + (coverH - stripH) / 2 : coverY + 38;
+      ctx.fillStyle = state.stripBg || '#f3e7cf'; ctx.fillRect(stripX, stripY, stripW, stripH);
+      if (state.stripBorder !== 'none') { ctx.strokeStyle = state.stripBorder === 'double_red' ? '#9e2a2b' : '#1e1815'; ctx.lineWidth = 2; ctx.strokeRect(stripX + 5, stripY + 5, stripW - 10, stripH - 10); }
+      ctx.fillStyle = '#1e1815'; ctx.font = `bold 20px ${state.fontFamily}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      (state.coverTitle || state.bookTitle).slice(0, 14).split('').forEach((ch, idx) => ctx.fillText(ch, stripX + stripW / 2 + 4, stripY + 32 + idx * 23));
+      if (state.coverSubtitle) { ctx.font = `600 12px ${state.fontFamily}`; state.coverSubtitle.slice(0, 10).split('').forEach((ch, idx) => ctx.fillText(ch, stripX + stripW - 18, stripY + 30 + idx * 15)); }
+      if (state.coverCalligrapher) { ctx.font = `500 11px ${state.fontFamily}`; state.coverCalligrapher.slice(0, 12).split('').forEach((ch, idx) => ctx.fillText(ch, stripX + 18, stripY + 110 + idx * 14)); }
+
+      const leftStartX = 30, paijiW = m.fullW / 2 - 40, paijiH = m.fullH - 100, paijiY = 50;
+      const inkColor = state.paper === 'paper-indigo' ? '#e6c675' : '#1e1815';
+      ctx.strokeStyle = inkColor; ctx.lineWidth = 4; ctx.strokeRect(leftStartX, paijiY, paijiW, paijiH);
+      ctx.lineWidth = 1.5; ctx.strokeRect(leftStartX + 6, paijiY + 6, paijiW - 12, paijiH - 12);
+      const col1W = paijiW * 0.26;
+      ctx.beginPath(); ctx.moveTo(leftStartX + col1W, paijiY + 6); ctx.lineTo(leftStartX + col1W, paijiY + paijiH - 6); ctx.moveTo(leftStartX + paijiW - col1W, paijiY + 6); ctx.lineTo(leftStartX + paijiW - col1W, paijiY + paijiH - 6); ctx.stroke();
+      ctx.fillStyle = inkColor; ctx.font = `bold 17px ${state.fontFamily}`;
+      (state.paijiRight || '歲在丙午仲冬重校刊行').slice(0, 16).split('').forEach((ch, idx) => ctx.fillText(ch, leftStartX + paijiW - col1W / 2, paijiY + 55 + idx * 24));
+      (state.paijiLeft || state.publisher).slice(0, 16).split('').forEach((ch, idx) => ctx.fillText(ch, leftStartX + col1W / 2, paijiY + 55 + idx * 24));
+      ctx.font = `900 28px ${state.fontFamily}`;
+      (state.paijiCenter || state.bookTitle).slice(0, 11).split('').forEach((ch, idx) => ctx.fillText(ch, leftStartX + paijiW / 2, paijiY + 55 + idx * 34));
+      const sealX = leftStartX + paijiW / 2 - 24, sealY = paijiY + paijiH - 80;
+      ctx.fillStyle = '#b92b27'; ctx.fillRect(sealX, sealY, 48, 48);
+      ctx.fillStyle = '#faf4e8'; ctx.font = `bold 15px ${state.fontFamily}`;
+      const pSeal = (state.paijiSeal || '古籍重排').slice(0, 4).padEnd(4, '印');
+      ctx.fillText(pSeal[0], sealX + 35, sealY + 15); ctx.fillText(pSeal[1], sealX + 35, sealY + 35);
+      ctx.fillText(pSeal[2], sealX + 13, sealY + 15); ctx.fillText(pSeal[3], sealX + 13, sealY + 35);
+      ctx.restore();
+    }
+
+    function drawLeafOnCanvas(leaf, canvas) {
+      const m = getCanvasMetrics();
+      const { cols, rows, colW, cellH, bodyH, banxinW, halfW, totalBodyW, padX, padTop, fullW, fullH } = m;
+      const isIndigo = state.paper === 'paper-indigo';
+      const fontScale = (Number(state.fontScale) || 100) / 100;
+      const fontWeight = state.fontWeight || '600';
+      const ctx = canvas.getContext('2d'); const scale = 2;
+      canvas.width = fullW * scale; canvas.height = fullH * scale;
+      ctx.save(); ctx.scale(scale, scale);
+
+      const paperColors = { 'paper-bamboo': '#f3e8d2', 'paper-xuan': '#faf6ee', 'paper-hemp': '#e6d3b3', 'paper-indigo': '#1b2838', 'paper-white': '#ffffff' };
+      ctx.fillStyle = paperColors[state.paper] || '#f3e8d2'; ctx.fillRect(0, 0, fullW, fullH);
+      const inkColor = isIndigo ? '#e6c675' : '#1e1815';
+      const redColor = isIndigo ? '#ff7b72' : '#b92b27';
+      const ruleColor = state.gridRule === 'zhusi' ? (isIndigo ? 'rgba(230,198,117,0.45)' : 'rgba(185,43,39,0.55)') : (isIndigo ? 'rgba(230,198,117,0.35)' : 'rgba(30,24,21,0.55)');
+
+      ctx.strokeStyle = inkColor; ctx.lineWidth = state.borderStyle === 'all_single' ? 2 : 4.5;
+      ctx.strokeRect(padX - 5, padTop - 5, totalBodyW + 10, bodyH + 10);
+      ctx.lineWidth = 1.4; ctx.strokeRect(padX, padTop, totalBodyW, bodyH);
+
+      const earText = leaf.earTitle || state.earTitle;
+      if (state.showEar && earText) {
+        const earX = padX + totalBodyW + 5, earY = padTop + 20, earW = 28, earH = 88;
+        ctx.lineWidth = 2; ctx.strokeStyle = inkColor; ctx.strokeRect(earX, earY, earW, earH);
+        ctx.fillStyle = inkColor; ctx.font = `bold 13px ${state.fontFamily}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        earText.slice(0, 4).split('').forEach((ch, idx) => ctx.fillText(ch, earX + earW / 2, earY + 16 + idx * 18));
+      }
+
+      function drawHalfLeaf(colsData, startX, isRightHalf) {
+        colsData.forEach((colObj, colIdx) => {
+          const colLeftX = startX + halfW - (colIdx + 1) * colW, colCenterX = colLeftX + colW / 2;
+          if (colIdx < cols - 1 && state.gridRule !== 'none') {
+            ctx.strokeStyle = ruleColor; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(colLeftX, padTop); ctx.lineTo(colLeftX, padTop + bodyH); ctx.stroke();
+          }
+          if (colObj.meipi) {
+            ctx.fillStyle = redColor; ctx.font = `600 11px ${state.fontFamily}`; ctx.textAlign = 'center';
+            colObj.meipi.slice(0, 4).split('').forEach((mc, mIdx) => ctx.fillText(mc, colCenterX, padTop - 58 + mIdx * 12));
+          }
+          colObj.cells.forEach((cell, rowIdx) => {
+            const cellTopY = padTop + rowIdx * cellH, cellCenterY = cellTopY + cellH / 2;
+            if (cell.type === 'main') {
+              const baseFontSize = Math.min(25, Math.floor(cellH * 0.72 * fontScale));
+              ctx.font = `${cell.isHeader ? '900' : fontWeight} ${baseFontSize}px ${state.fontFamily}`;
+              ctx.fillStyle = cell.isPunctCell ? redColor : inkColor;
+              ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              if (cell.isInkBlock) ctx.fillRect(colCenterX - baseFontSize * 0.36, cellCenterY - baseFontSize * 0.38, baseFontSize * 0.72, baseFontSize * 0.76);
+              else ctx.fillText(cell.char, colCenterX, cellCenterY);
+              if (state.showProperLine && cell.proper) { ctx.strokeStyle = redColor; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(colLeftX + 4, cellTopY + 2); ctx.lineTo(colLeftX + 4, cellTopY + cellH - 2); ctx.stroke(); }
+              if (state.showProperLine && cell.bookTitle) {
+                ctx.strokeStyle = redColor; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(colLeftX + 4, cellTopY + 2);
+                ctx.quadraticCurveTo(colLeftX + 1, cellTopY + cellH * 0.25, colLeftX + 4, cellTopY + cellH * 0.5);
+                ctx.quadraticCurveTo(colLeftX + 7, cellTopY + cellH * 0.75, colLeftX + 4, cellTopY + cellH - 2); ctx.stroke();
+              }
+              if (cell.judou && state.judou !== 'hidden') {
+                ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor;
+                ctx.font = `bold 13px ${state.fontFamily}`;
+                ctx.fillText(cell.judou, colLeftX + colW - 7, cellTopY + cellH - 5);
+              }
+            } else if (cell.type === 'dual') {
+              const smallFont = Math.max(11, Math.floor(cellH * 0.43 * fontScale));
+              ctx.font = `${fontWeight} ${smallFont}px ${state.fontFamily}`;
+              ctx.fillStyle = inkColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              ctx.fillText(cell.rightChar, colLeftX + colW * 0.73, cellCenterY);
+              ctx.fillText(cell.leftChar, colLeftX + colW * 0.27, cellCenterY);
+              if (cell.rightJudou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 10px ${state.fontFamily}`; ctx.fillText(cell.rightJudou, colLeftX + colW - 4, cellTopY + cellH - 3); }
+              if (cell.leftJudou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 10px ${state.fontFamily}`; ctx.fillText(cell.leftJudou, colLeftX + colW * 0.48, cellTopY + cellH - 3); }
+            }
+          });
+        });
+        if (state.showSeal && leaf.isVolStart && isRightHalf) {
+          const sealX = startX + halfW - colW + 3, sealY = padTop + bodyH - 46;
+          ctx.strokeStyle = '#b92b27'; ctx.lineWidth = 2; ctx.strokeRect(sealX, sealY, 36, 36);
+          ctx.fillStyle = 'rgba(185,43,39,0.08)'; ctx.fillRect(sealX, sealY, 36, 36);
+          ctx.fillStyle = '#b92b27'; ctx.font = `bold 12px ${state.fontFamily}`;
+          const sc = (state.sealText || '芸窗珍藏').slice(0, 4).padEnd(4, '印');
+          ctx.fillText(sc[0], sealX + 27, sealY + 11); ctx.fillText(sc[1], sealX + 27, sealY + 26);
+          ctx.fillText(sc[2], sealX + 10, sealY + 11); ctx.fillText(sc[3], sealX + 10, sealY + 26);
+        }
+      }
+
+      drawHalfLeaf(leaf.leftCols, padX, false);
+      const bx = padX + halfW;
+      ctx.strokeStyle = inkColor; ctx.lineWidth = 1.4; ctx.strokeRect(bx, padTop, banxinW, bodyH);
+      if (state.fishtail !== 'none') {
+        const fy1 = padTop + 145; ctx.fillStyle = inkColor; ctx.fillRect(bx + 2, fy1, banxinW - 4, 4);
+        ctx.beginPath(); ctx.moveTo(bx + 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 26); ctx.lineTo(bx + banxinW / 2, fy1 + 15); ctx.lineTo(bx + 2, fy1 + 26); ctx.closePath(); ctx.fill();
+        if (state.fishtail === 'double_solid' || state.fishtail === 'hollow_floral') {
+          const fy2 = padTop + bodyH - 135;
+          ctx.beginPath(); ctx.moveTo(bx + 2, fy2); ctx.lineTo(bx + banxinW / 2, fy2 + 11); ctx.lineTo(bx + banxinW - 2, fy2); ctx.lineTo(bx + banxinW - 2, fy2 + 19); ctx.lineTo(bx + 2, fy2 + 19); ctx.closePath(); ctx.fill();
+          ctx.fillRect(bx + 2, fy2 + 22, banxinW - 4, 4);
+        }
+      }
+      ctx.fillStyle = inkColor; ctx.textAlign = 'center';
+      ctx.font = `bold 13px ${state.fontFamily}`; state.bookTitle.slice(0, 7).split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + 34 + idx * 15));
+      ctx.font = `600 12px ${state.fontFamily}`; `${leaf.volume || state.bookVolume}　第${toChineseNum(leaf.volLeafNumber)}葉`.split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + 210 + idx * 16));
+      ctx.font = `500 11px ${state.fontFamily}`; state.publisher.slice(0, 6).split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + bodyH - 95 + idx * 14));
+      drawHalfLeaf(leaf.rightCols, padX + halfW + banxinW, true);
+      ctx.restore();
+    }
+
+    function exportCurrentLeafToPng() {
+      parseAndPaginate();
+      const canvas = document.getElementById('exportCanvas');
+      if (state.viewMode === 'paiji') {
+        drawCoverSpreadOnCanvas(canvas);
+        const link = document.createElement('a'); link.download = `${state.bookTitle}_书衣封面与牌记.png`; link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        showToast('已导出自定义线装封面与牌记 PNG', '🖼️'); return;
+      }
+      const leaf = state.leaves[state.currentLeafIdx] || state.leaves[0];
+      drawLeafOnCanvas(leaf, canvas);
+      const link = document.createElement('a'); link.download = `${state.bookTitle}_${leaf.volume}_第${toChineseNum(leaf.volLeafNumber)}叶.png`; link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      showToast(`已导出高清雕版书叶 PNG（${leaf.volume}·第${toChineseNum(leaf.volLeafNumber)}叶）`, '🖼️');
+    }
+
+    async function exportFullBookToPdf() {
+      parseAndPaginate();
+      const totalLeaves = state.leaves.length;
+      const includeCoverPaiji = state.pdfIncludeCover || state.pdfIncludePaiji;
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        const prevMode = state.viewMode; state.viewMode = 'all_leaves'; renderCurrentLeaf(); window.print(); state.viewMode = prevMode; renderCurrentLeaf(); return;
+      }
+      const modal = document.getElementById('modalPdfProgress');
+      const stepEl = document.getElementById('pdfProgressStep');
+      const barEl = document.getElementById('pdfProgressBar');
+      modal.classList.remove('hidden');
+      try {
+        const m = getCanvasMetrics();
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: m.fullW >= m.fullH ? 'landscape' : 'portrait', unit: 'pt', format: [m.fullW, m.fullH] });
+        const canvas = document.getElementById('exportCanvas');
+        let pageAdded = false;
+        const totalSteps = (includeCoverPaiji ? 1 : 0) + totalLeaves;
+        let doneSteps = 0;
+        if (includeCoverPaiji) {
+          stepEl.textContent = '正在渲染线装书衣题签与镌刻牌记页...';
+          barEl.style.width = `${Math.round((1 / (totalSteps + 1)) * 100)}%`;
+          await new Promise((r) => setTimeout(r, 30));
+          drawCoverSpreadOnCanvas(canvas);
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, m.fullW, m.fullH);
+          pageAdded = true; doneSteps++;
+        }
+        for (let idx = 0; idx < totalLeaves; idx++) {
+          const lf = state.leaves[idx];
+          stepEl.textContent = `正在雕版渲染正文书叶：${lf.volume} 第${toChineseNum(lf.volLeafNumber)}叶 (${idx + 1} / ${totalLeaves})...`;
+          barEl.style.width = `${Math.round(((doneSteps + 1) / totalSteps) * 100)}%`;
+          await new Promise((r) => setTimeout(r, 20));
+          if (pageAdded) pdf.addPage([m.fullW, m.fullH], m.fullW >= m.fullH ? 'landscape' : 'portrait');
+          drawLeafOnCanvas(lf, canvas);
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, m.fullW, m.fullH);
+          pageAdded = true; doneSteps++;
+        }
+        pdf.save(`${state.bookTitle}_整书古籍重排(共${totalLeaves}叶).pdf`);
+        showToast(`整书 PDF 导出完成（含封面牌记及正文共 ${totalLeaves} 叶）`, '📕');
+      } catch (err) {
+        showToast('PDF 合成遇到问题，已启动浏览器原生打印导出', '🖨️');
+      } finally {
+        modal.classList.add('hidden'); barEl.style.width = '0%';
+      }
+    }
+
+    async function loadDaizhigeDir(path) {
+      state.daizhigePath = path;
+      const statusEl = document.getElementById('daizhigeStatus');
+      const grid = document.getElementById('daizhigeFileGrid');
+      const bc = document.getElementById('daizhigeBreadcrumb');
+      const parts = path.split('/').filter(Boolean);
+      bc.innerHTML = `<button type="button" data-dzg-path="" class="dzg-crumb text-amber-800 hover:underline">根目录</button>` +
+        parts.map((p, idx) => ` / <button type="button" data-dzg-path="${parts.slice(0, idx + 1).join('/')}" class="dzg-crumb text-amber-800 hover:underline">${p}</button>`).join('');
+      statusEl.textContent = '正在连接 GitHub 殆知阁语料库...';
+      grid.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-stone-500">⏳ 正在获取「${path || '根目录'}」文献目录...</div>`;
+      try {
+        const apiUrl = `https://api.github.com/repos/garychowcmu/daizhigev20/contents/${encodeURIComponent(path).replace(/%2F/g, '/')}`;
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const items = await res.json();
+        state.daizhigeItems = Array.isArray(items) ? items : [];
+        statusEl.textContent = `已加载 ${state.daizhigeItems.length} 项（源自 garychowcmu/daizhigev20）`;
+        renderDaizhigeItems();
+      } catch (err) {
+        statusEl.textContent = 'GitHub API 请求受限或网络异常';
+        grid.innerHTML = `<div class="col-span-full p-6 text-center text-xs text-red-700 bg-red-50 rounded-lg border border-red-200">无法访问 GitHub API（可能是网络或匿名频率限制：${err.message}）。您仍可点击「上传文档」导入本地下载的殆知阁 TXT 文件。</div>`;
+      }
+    }
+
+    function renderDaizhigeItems() {
+      const grid = document.getElementById('daizhigeFileGrid');
+      const q = document.getElementById('inputDaizhigeFilter').value.trim().toLowerCase();
+      const items = state.daizhigeItems.filter((it) => !q || it.name.toLowerCase().includes(q));
+      if (items.length === 0) { grid.innerHTML = `<div class="col-span-full py-6 text-center text-xs text-stone-500">当前目录无匹配文献</div>`; return; }
+      grid.innerHTML = items.map((it) => {
+        const isDir = it.type === 'dir';
+        const sizeKb = it.size ? `${Math.round(it.size / 1024)} KB` : '';
+        return `<div class="p-3 rounded-lg bg-white border border-stone-300 hover:border-amber-700 flex items-center justify-between gap-2 text-xs"><div class="truncate"><span class="mr-1.5">${isDir ? '📁' : '📜'}</span><span class="font-guji font-medium text-stone-900" title="${it.name}">${it.name}</span>${sizeKb ? `<span class="ml-1.5 text-[10px] text-stone-400 font-mono">${sizeKb}</span>` : ''}</div>${isDir ? `<button type="button" data-dzg-dir="${it.path}" class="btn-dzg-dir px-2.5 py-1 rounded bg-stone-200 hover:bg-stone-300 text-stone-800 shrink-0">打开</button>` : `<button type="button" data-dzg-file="${it.path}" data-dzg-name="${it.name}" class="btn-dzg-load px-2.5 py-1 rounded bg-[#9e2a2b] hover:bg-[#822021] text-white shrink-0">载入重排</button>`}</div>`;
+      }).join('');
+    }
+
+    async function loadDaizhigeFile(path, name) {
+      showToast(`正在从殆知阁拉取《${name}》...`, '⏳');
+      try {
+        const cdnUrl = `https://cdn.jsdelivr.net/gh/garychowcmu/daizhigev20@master/${encodeURI(path)}`;
+        let res = await fetch(cdnUrl);
+        if (!res.ok) res = await fetch(`https://raw.githubusercontent.com/garychowcmu/daizhigev20/master/${encodeURI(path)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        let text = await res.text();
+        let truncatedMsg = '';
+        if (text.length > 25000) { text = text.slice(0, 25000); truncatedMsg = '（篇幅宏富，已先截取前 25,000 字载入工作台以确保浏览器流畅预览）'; }
+        const title = name.replace(/\.txt$/i, '');
+        applyImportedContent(title, '〔殆知阁藏本〕', text, '殆知阁语料库');
+        showToast(`已载入殆知阁《${title}》${truncatedMsg}`, '📜');
+      } catch (err) {
+        showToast(`拉取殆知阁文献失败：${err.message}`, '⚠️');
+      }
+    }
+
+    async function loadPoetryCollection(colPath) {
+      state.poetryCollection = colPath;
+      const statusEl = document.getElementById('poetryStatus');
+      const grid = document.getElementById('poetryFileGrid');
+      statusEl.textContent = `正在获取「${colPath}」JSON 分卷列表...`;
+      grid.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-stone-500">⏳ 正在连接 chinese-poetry 仓库...</div>`;
+      try {
+        const res = await fetch(`https://api.github.com/repos/chinese-poetry/chinese-poetry/contents/${encodeURIComponent(colPath)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const items = await res.json();
+        const jsonFiles = (Array.isArray(items) ? items : []).filter((it) => it.name.endsWith('.json') && !it.name.includes('author'));
+        state.poetryItems = jsonFiles;
+        statusEl.textContent = `已列出「${colPath}」共 ${jsonFiles.length} 个 JSON 卷册`;
+        grid.innerHTML = jsonFiles.slice(0, 60).map((it) => `<div class="p-3 rounded-lg bg-white border border-stone-300 hover:border-amber-700 flex items-center justify-between gap-2 text-xs"><span class="truncate font-mono text-stone-800" title="${it.name}">🏮 ${it.name}</span><button type="button" data-poetry-file="${it.path}" data-poetry-name="${it.name}" class="btn-poetry-load px-2.5 py-1 rounded bg-[#9e2a2b] hover:bg-[#822021] text-white shrink-0">载入</button></div>`).join('');
+      } catch (err) {
+        statusEl.textContent = '拉取失败';
+        grid.innerHTML = `<div class="col-span-full p-6 text-center text-xs text-red-700 bg-red-50 rounded-lg border border-red-200">无法连接 chinese-poetry API：${err.message}</div>`;
+      }
+    }
+
+    async function loadPoetryJsonFile(path, name) {
+      showToast(`正在解析《${name}》诗词 JSON...`, '⏳');
+      try {
+        const res = await fetch(`https://cdn.jsdelivr.net/gh/chinese-poetry/chinese-poetry@master/${encodeURI(path)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const formatted = formatPoetryJsonToGuji(data, name);
+        const title = `${state.poetryCollection}·${name.replace('.json', '')}`;
+        applyImportedContent(title, '〔chinese-poetry 语料〕', formatted, '中华古诗词库');
+        showToast(`已载入《${title}》并自动格式化为古籍版式`, '🏮');
+      } catch (err) {
+        showToast(`解析 JSON 失败：${err.message}`, '⚠️');
+      }
+    }
+
+    function formatPoetryJsonToGuji(data, fileName) {
+      if (!Array.isArray(data)) return JSON.stringify(data, null, 2);
+      const slice = data.slice(0, 40);
+      const lines = [`[卷标:卷一][书耳:${state.poetryCollection.slice(0, 4)}]${state.poetryCollection}（${fileName.replace('.json', '')}）`];
+      slice.forEach((item) => {
+        const title = item.title || item.rhythmic || item.chapter || '無題';
+        const author = item.author ? `【〈${item.author}〉】` : '';
+        const paras = Array.isArray(item.paragraphs) ? item.paragraphs : Array.isArray(item.content) ? item.content : [];
+        lines.push(`《${title}》${author}`);
+        paras.forEach((p) => lines.push(p));
+      });
+      return lines.join('\n');
+    }
+
+    function applyImportedContent(title, author, text, publisher) {
+      state.bookTitle = title; state.bookAuthor = author; state.publisher = publisher;
+      state.coverTitle = title; state.paijiCenter = title; state.sourceText = text; state.currentLeafIdx = 0;
+      document.getElementById('inputBookTitle').value = title;
+      document.getElementById('inputBookAuthor').value = author;
+      document.getElementById('inputPublisher').value = publisher;
+      document.getElementById('inputCoverTitle').value = title;
+      document.getElementById('inputPaijiCenter').value = title;
+      document.getElementById('textareaSource').value = text;
+      switchTab('studio');
+      renderCurrentLeaf();
+    }
+
+    async function callCustomAiApi(systemPrompt, userText) {
+      saveAiConfigFromStorage();
+      if (!state.aiBaseUrl || !state.aiModel) throw new Error('请先填写 AI API Base URL 和模型名称');
+      if (!state.aiKey && !state.aiBaseUrl.includes('localhost') && !state.aiBaseUrl.includes('127.0.0.1')) throw new Error('请先填写有效的 API Key');
+      const statusEl = document.getElementById('aiStatusIndicator');
+      statusEl.textContent = '⏳ 正在调用大模型处理中...'; statusEl.className = 'text-[11px] text-amber-800 font-semibold';
+      try {
+        const res = await fetch(`${state.aiBaseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(state.aiKey ? { Authorization: `Bearer ${state.aiKey}` } : {}) },
+          body: JSON.stringify({ model: state.aiModel, temperature: 0.2, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userText }] })
+        });
+        if (!res.ok) { const errText = await res.text(); throw new Error(`API 返回 ${res.status}: ${errText.slice(0, 120)}`); }
+        const json = await res.json();
+        const content = json.choices?.[0]?.message?.content;
+        if (!content) throw new Error('模型未返回有效文本');
+        statusEl.textContent = '✅ 处理完成'; statusEl.className = 'text-[11px] text-emerald-800 font-semibold';
+        return content.trim();
+      } catch (err) {
+        statusEl.textContent = '❌ 调用失败'; statusEl.className = 'text-[11px] text-red-700 font-semibold';
+        throw err;
+      }
+    }
+
+    async function runAiTextTransform(taskType, customInstruction = '') {
+      const input = state.sourceText.slice(0, 6000);
+      if (!input.trim()) return showToast('编辑器内暂无文本', '⚠️');
+      const prompts = {
+        notes: '你是资深古籍整理专家。请将用户提供的古籍文本中的注文、按语、音义、集解、校勘记精确识别出来，用【...】包裹（作为双行小字夹注），保留原有正文与换行，直接输出处理后的纯文本，不要输出Markdown代码块或额外解释。',
+        proper: '你是资深古籍标校专家。请为文本中的人名、地名、朝代、官职加上〈...〉专名号，为典籍书名/篇名加上《...》书名号，并将现代标点规范化为古籍句读（。和、），直接输出处理后的纯文本，不要输出解释。',
+        volume: '你是古籍版式编辑。请为文本合理划分卷次与篇目，在每卷开头插入 [卷标:卷一] 与 [书耳:篇名]，并在关键段落首句前添加简明扼要的 [眉批:四至八字批语]，直接输出处理后的纯文本，不要输出解释。',
+        custom: `你是古籍排版专家。本系统支持的标记语法为：【双行夹注】、〈专名号〉、《书名号》、[卷标:卷名]、[书耳:耳题]、[眉批:批语]。请严格按用户指令处理文本并直接输出结果：\n用户指令：${customInstruction}`
+      };
+      try {
+        const result = await callCustomAiApi(prompts[taskType], input);
+        const cleaned = result.replace(/^```[a-z]*\n?/i, '').replace(/```$/i, '').trim();
+        state.sourceText = cleaned; document.getElementById('textareaSource').value = cleaned; renderCurrentLeaf();
+        showToast('AI 标校完成并已实时重排书叶', '✨');
+      } catch (err) {
+        showToast(`AI 调用失败：${err.message}`, '⚠️');
+      }
+    }
+
+    async function runAiRecommendLayout() {
+      const sample = state.sourceText.slice(0, 1200);
+      const sys = `你是古籍版本学专家。请根据文本体裁与内容特征，从以下预设中选择最合适的一项，仅返回纯JSON：{"preset":"song_sibu|edo_kui|siku_zhusi|ming_jiajing|qing_langhuan|indigo_gold","reason":"简短理由"}`;
+      try {
+        const raw = await callCustomAiApi(sys, sample);
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('未能解析推荐 JSON');
+        const obj = JSON.parse(jsonMatch[0]);
+        if (EDITION_PRESETS[obj.preset]) {
+          applyEditionPreset(obj.preset); renderCurrentLeaf();
+          showToast(`AI 推荐「${EDITION_PRESETS[obj.preset].name}」：${obj.reason || ''}`, '✨');
+        }
+      } catch (err) {
+        showToast(`AI 版式推荐失败：${err.message}`, '⚠️');
+      }
+    }
+
+    function runLocalRulePreprocess() {
+      let t = state.sourceText.replace(/[ \t]+/g, '').replace(/\n{3,}/g, '\n\n').trim();
+      t = t.replace(/（([^（）\n]{2,260})）/g, '【$1】').replace(/\(([^()\n]{2,260})\)/g, '【$1】');
+      t = t.replace(/[！？；!?;]/g, '。').replace(/[，,：:]/g, '、');
+      state.sourceText = t; document.getElementById('textareaSource').value = t; renderCurrentLeaf();
+      showToast('已完成本地规则预处理（清洗、注疏转夹注、句读规范化）', '⚡');
+    }
+
+    function renderCatalog() {
+      const grid = document.getElementById('catalogGrid');
+      const query = state.catalogSearch.trim().toLowerCase();
+      const filtered = CLASSICAL_BOOKS.filter((b) => {
+        if (state.catalogDivision !== 'ALL' && b.division !== state.catalogDivision) return false;
+        if (state.catalogStatus !== 'ALL') {
+          if (state.catalogStatus === '全本') { if (b.completeness !== '全本') return false; }
+          else if (b.proofStatus !== state.catalogStatus) return false;
+        }
+        if (query && !`${b.title} ${b.author} ${b.edition} ${b.summary}`.toLowerCase().includes(query)) return false;
+        return true;
+      });
+      grid.innerHTML = filtered.map((b) => `
+        <article class="bg-[#fbf8f3] border border-stone-300 hover:border-amber-800/70 rounded-xl p-4 sm:p-5 shadow-2xs transition flex flex-col justify-between gap-3">
+          <div class="space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded bg-amber-900/10 text-amber-950 border border-amber-900/20 text-xs font-medium">${b.subcategory}</span><span class="px-2 py-0.5 rounded bg-stone-200 text-stone-700 text-[11px]">${b.edition}</span></div>
+              <span class="px-2 py-0.5 rounded bg-emerald-900/10 text-emerald-900 text-[11px] font-medium">${b.proofStatus} · ${b.completeness}</span>
+            </div>
+            <div>
+              <h3 class="font-guji text-lg sm:text-xl font-bold text-stone-900">《${b.title}》<span class="text-sm font-normal text-stone-600 ml-1">${b.volumes}</span></h3>
+              <p class="text-xs text-stone-600 font-guji mt-0.5">${b.author}</p>
+            </div>
+            <p class="text-xs text-stone-700 leading-relaxed line-clamp-3">${b.summary}</p>
+          </div>
+          <div class="pt-3 border-t border-stone-200/90 flex items-center justify-between gap-2">
+            <span class="text-[11px] text-stone-500 font-mono">全书共 ${b.wordCount}</span>
+            <div class="flex items-center gap-2">
+              <button type="button" data-detail-id="${b.id}" class="btn-book-detail px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-200/80 hover:bg-stone-300 text-stone-800">提要</button>
+              <button type="button" data-load-id="${b.id}" class="btn-book-load px-3 py-1.5 rounded-lg text-xs font-medium bg-[#9e2a2b] hover:bg-[#822021] text-white">载入重排</button>
+            </div>
+          </div>
+        </article>`).join('');
+    }
+
+    function applyEditionPreset(presetKey) {
+      const p = EDITION_PRESETS[presetKey];
+      if (!p) return;
+      Object.assign(state, { colsPerHalf: p.cols, rowsPerCol: p.rows, borderStyle: p.borderStyle, gridRule: p.gridRule, fishtail: p.fishtail, mouth: p.mouth, paper: p.paper, judou: p.judou, noteFlow: p.noteFlow, showEar: p.showEar, showProperLine: p.showProperLine, showSeal: p.showSeal });
+      document.getElementById('selectEditionPreset').value = presetKey;
+      document.getElementById('rangeCols').value = p.cols; document.getElementById('rangeRows').value = p.rows;
+      document.getElementById('selectBorderStyle').value = p.borderStyle; document.getElementById('selectGridRule').value = p.gridRule;
+      document.getElementById('selectFishtail').value = p.fishtail; document.getElementById('selectMouth').value = p.mouth;
+      document.getElementById('selectPaper').value = p.paper; document.getElementById('selectJudou').value = p.judou;
+      document.getElementById('selectNoteFlow').value = p.noteFlow; document.getElementById('chkShowEar').checked = p.showEar;
+      document.getElementById('chkShowProperLine').checked = p.showProperLine; document.getElementById('chkShowSeal').checked = p.showSeal;
+    }
+
+    function loadBookById(bookId, switchToStudio = true) {
+      const book = CLASSICAL_BOOKS.find((b) => b.id === bookId);
+      if (!book) return;
+      Object.assign(state, { selectedBookId: book.id, bookTitle: book.title, bookVolume: '卷一', bookAuthor: book.author, earTitle: book.earTitle, publisher: book.publisher, sealText: book.seal, sourceText: book.sampleText, coverTitle: book.title, paijiCenter: book.title, paijiLeft: `${book.publisher} · 依底本精校重梓`, currentLeafIdx: 0 });
+      document.getElementById('selectBookSample').value = book.id; document.getElementById('inputBookTitle').value = book.title;
+      document.getElementById('inputBookVolume').value = state.bookVolume; document.getElementById('inputBookAuthor').value = book.author;
+      document.getElementById('inputEarTitle').value = book.earTitle; document.getElementById('inputPublisher').value = book.publisher;
+      document.getElementById('inputSealText').value = book.seal; document.getElementById('textareaSource').value = book.sampleText;
+      document.getElementById('inputCoverTitle').value = book.title; document.getElementById('inputPaijiCenter').value = book.title;
+      document.getElementById('inputPaijiLeft').value = state.paijiLeft;
+      if (book.preset) applyEditionPreset(book.preset);
+      if (switchToStudio) switchTab('studio');
+      renderCurrentLeaf();
+    }
+
+    function switchTab(tabName) {
+      state.activeTab = tabName;
+      ['studio', 'corpus', 'catalog', 'anatomy'].forEach((t) => {
+        const viewEl = document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1));
+        const btnEl = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (viewEl) viewEl.classList.toggle('hidden', t !== tabName);
+        if (btnEl) btnEl.className = `px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${t === tabName ? 'bg-[#9e2a2b] text-white shadow' : 'text-amber-200/80 hover:text-white'}`;
+      });
+    }
+
+    function switchLeftSubTab(subTab) {
+      state.leftSubTab = subTab;
+      const map = [['text', 'subPanelText', 'subTabBtnText'], ['ai', 'subPanelAI', 'subTabBtnAI'], ['font_layout', 'subPanelFontLayout', 'subTabBtnFontLayout'], ['cover', 'subPanelCover', 'subTabBtnCover']];
+      map.forEach(([key, panelId, btnId]) => {
+        document.getElementById(panelId).classList.toggle('hidden', key !== subTab);
+        document.getElementById(btnId).className = key === subTab ? 'px-2.5 py-1.5 rounded-t-lg font-semibold bg-[#fbf8f3] text-[#9e2a2b] border border-b-0 border-stone-300' : 'px-2.5 py-1.5 rounded-t-lg font-medium bg-[#d8ccb8]/60 hover:bg-[#fbf8f3]/70 text-stone-700';
+      });
+    }
+
+    function setLeafViewMode(mode) {
+      state.viewMode = mode;
+      const modes = [['btnViewSpread', 'spread'], ['btnViewRightHalf', 'right_half'], ['btnViewLeftHalf', 'left_half'], ['btnViewPaiji', 'paiji'], ['btnViewAllLeaves', 'all_leaves']];
+      modes.forEach(([id, m]) => {
+        const el = document.getElementById(id);
+        if (el) el.className = m === mode ? 'px-2.5 py-1 rounded text-xs font-medium bg-[#9e2a2b] text-white shadow-2xs transition' : 'px-2.5 py-1 rounded text-xs font-medium bg-stone-200/80 hover:bg-stone-300/70 text-stone-700 transition';
+      });
+      renderCurrentLeaf();
+    }
+
+    async function handleUploadedFile(file) {
+      if (!file) return;
+      const ext = file.name.split('.').pop().toLowerCase();
+      const baseTitle = file.name.replace(/\.(guji\.json|txt|md|json|html|docx)$/i, '');
+      try {
+        if (file.name.endsWith('.guji.json')) {
+          const proj = JSON.parse(await file.text());
+          Object.assign(state, { bookTitle: proj.bookTitle || baseTitle, bookVolume: proj.bookVolume || '卷一', bookAuthor: proj.bookAuthor || '〔撰者〕', publisher: proj.publisher || '芸窗重梓', coverTitle: proj.coverTitle || proj.bookTitle || baseTitle, paijiCenter: proj.paijiCenter || proj.bookTitle || baseTitle, sourceText: proj.sourceText || '', currentLeafIdx: 0 });
+          if (proj.preset && EDITION_PRESETS[proj.preset]) applyEditionPreset(proj.preset);
+          document.getElementById('inputBookTitle').value = state.bookTitle;
+          document.getElementById('inputBookAuthor').value = state.bookAuthor;
+          document.getElementById('textareaSource').value = state.sourceText;
+          renderCurrentLeaf(); showToast(`已导入古籍工程《${state.bookTitle}》`, '📦'); return;
+        }
+        let extractedText = '';
+        if (ext === 'docx' && window.mammoth) {
+          const res = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+          extractedText = res.value || '';
+        } else if (ext === 'json') {
+          extractedText = formatPoetryJsonToGuji(JSON.parse(await file.text()), file.name);
+        } else if (ext === 'html') {
+          extractedText = new DOMParser().parseFromString(await file.text(), 'text/html').body.textContent || '';
+        } else {
+          extractedText = await file.text();
+        }
+        applyImportedContent(baseTitle, '〔本地上传〕', extractedText, '本地文档重排');
+        showToast(`已解析上传文档《${baseTitle}》（共 ${state.leaves.length} 叶）`, '📂');
+      } catch (err) {
+        showToast(`文档解析失败：${err.message}`, '⚠️');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadAiConfigFromStorage();
+      document.getElementById('selectBookSample').innerHTML = CLASSICAL_BOOKS.map((b) => `<option value="${b.id}">《${b.title}》</option>`).join('');
+      document.getElementById('tabBtnStudio').addEventListener('click', () => switchTab('studio'));
+      document.getElementById('tabBtnCorpus').addEventListener('click', () => { switchTab('corpus'); if (state.daizhigeItems.length === 0) loadDaizhigeDir('儒藏'); });
+      document.getElementById('tabBtnCatalog').addEventListener('click', () => { renderCatalog(); switchTab('catalog'); });
+      document.getElementById('tabBtnAnatomy').addEventListener('click', () => switchTab('anatomy'));
+      document.getElementById('btnBackToStudioFromGuide').addEventListener('click', () => switchTab('studio'));
+
+      document.getElementById('subTabBtnText').addEventListener('click', () => switchLeftSubTab('text'));
+      document.getElementById('subTabBtnAI').addEventListener('click', () => switchLeftSubTab('ai'));
+      document.getElementById('subTabBtnFontLayout').addEventListener('click', () => switchLeftSubTab('font_layout'));
+      document.getElementById('subTabBtnCover').addEventListener('click', () => switchLeftSubTab('cover'));
+
+      document.getElementById('selectBookSample').addEventListener('change', (e) => loadBookById(e.target.value, false));
+      document.getElementById('inputImportDocFile').addEventListener('change', (e) => handleUploadedFile(e.target.files?.[0]));
+
+      const ta = document.getElementById('textareaSource');
+      ta.addEventListener('dragover', (e) => { e.preventDefault(); ta.classList.add('ring-2', 'ring-amber-700'); });
+      ta.addEventListener('dragleave', () => ta.classList.remove('ring-2', 'ring-amber-700'));
+      ta.addEventListener('drop', (e) => { e.preventDefault(); ta.classList.remove('ring-2', 'ring-amber-700'); if (e.dataTransfer?.files?.[0]) handleUploadedFile(e.dataTransfer.files[0]); });
+
+      document.getElementById('btnCorpusTabDaizhige').addEventListener('click', () => { document.getElementById('corpusPanelDaizhige').classList.remove('hidden'); document.getElementById('corpusPanelPoetry').classList.add('hidden'); });
+      document.getElementById('btnCorpusTabPoetry').addEventListener('click', () => { document.getElementById('corpusPanelDaizhige').classList.add('hidden'); document.getElementById('corpusPanelPoetry').classList.remove('hidden'); if (state.poetryItems.length === 0) loadPoetryCollection('全唐诗'); });
+
+      document.getElementById('daizhigeRootBtns').innerHTML = `<span class="text-xs font-semibold text-stone-600 mr-1">殆知阁十大部类：</span>` + DAIZHIGE_ROOTS.map((r) => `<button type="button" data-dzg-root="${r}" class="dzg-root-btn px-2.5 py-1 rounded text-xs font-medium bg-stone-200 hover:bg-amber-800 hover:text-white text-stone-800 transition">${r}</button>`).join('');
+      document.getElementById('daizhigeRootBtns').addEventListener('click', (e) => { const btn = e.target.closest('.dzg-root-btn'); if (btn) loadDaizhigeDir(btn.getAttribute('data-dzg-root')); });
+      document.getElementById('daizhigeBreadcrumb').addEventListener('click', (e) => { const btn = e.target.closest('.dzg-crumb'); if (btn) loadDaizhigeDir(btn.getAttribute('data-dzg-path')); });
+      document.getElementById('inputDaizhigeFilter').addEventListener('input', renderDaizhigeItems);
+      document.getElementById('daizhigeFileGrid').addEventListener('click', (e) => {
+        const dirBtn = e.target.closest('.btn-dzg-dir'); if (dirBtn) return loadDaizhigeDir(dirBtn.getAttribute('data-dzg-dir'));
+        const fileBtn = e.target.closest('.btn-dzg-load'); if (fileBtn) return loadDaizhigeFile(fileBtn.getAttribute('data-dzg-file'), fileBtn.getAttribute('data-dzg-name'));
+      });
+
+      document.getElementById('poetryCollectionsBtns').innerHTML = `<span class="text-xs font-semibold text-stone-600 mr-1">中华古诗词典籍：</span>` + POETRY_COLLECTIONS.map((c) => `<button type="button" data-pcol="${c.path}" class="pcol-btn px-2.5 py-1 rounded text-xs font-medium bg-stone-200 hover:bg-[#9e2a2b] hover:text-white text-stone-800 transition" title="${c.desc}">${c.label}</button>`).join('');
+      document.getElementById('poetryCollectionsBtns').addEventListener('click', (e) => { const btn = e.target.closest('.pcol-btn'); if (btn) loadPoetryCollection(btn.getAttribute('data-pcol')); });
+      document.getElementById('poetryFileGrid').addEventListener('click', (e) => { const btn = e.target.closest('.btn-poetry-load'); if (btn) loadPoetryJsonFile(btn.getAttribute('data-poetry-file'), btn.getAttribute('data-poetry-name')); });
+
+      document.getElementById('selectAiPreset').addEventListener('change', (e) => {
+        const p = AI_PROVIDER_PRESETS[e.target.value];
+        if (p && p.baseUrl) { document.getElementById('inputAiBaseUrl').value = p.baseUrl; document.getElementById('inputAiModel').value = p.model; }
+      });
+      document.getElementById('btnSaveAiConfig').addEventListener('click', saveAiConfigToStorage);
+      document.getElementById('btnAiSeparateNotes').addEventListener('click', () => runAiTextTransform('notes'));
+      document.getElementById('btnAiAnnotateProper').addEventListener('click', () => runAiTextTransform('proper'));
+      document.getElementById('btnAiVolumeMeipi').addEventListener('click', () => runAiTextTransform('volume'));
+      document.getElementById('btnAiRecommendLayout').addEventListener('click', runAiRecommendLayout);
+      document.getElementById('btnAiRunCustom').addEventListener('click', () => { const instr = document.getElementById('inputAiCustomPrompt').value.trim(); if (!instr) return showToast('请输入自定义 AI 指令', '⚠️'); runAiTextTransform('custom', instr); });
+      document.getElementById('btnRulePreprocess').addEventListener('click', runLocalRulePreprocess);
+
+      document.getElementById('btnAddVolume').addEventListener('click', () => {
+        const volName = `卷${toChineseNum(state.detectedVolumes.length + 1)}`;
+        state.sourceText = state.sourceText.trimEnd() + `\n[卷标:${volName}][书耳:${volName}]${state.bookTitle}${volName}\n〔撰者題名〕\n請在此輸入${volName}正文內容【支持雙行小字夾注】。\n`;
+        ta.value = state.sourceText; renderCurrentLeaf(); state.currentLeafIdx = state.leaves.length - 1; renderCurrentLeaf();
+      });
+      document.getElementById('volumePillsContainer').addEventListener('click', (e) => { const btn = e.target.closest('.vol-jump-btn'); if (btn) { state.currentLeafIdx = Number(btn.getAttribute('data-vol-leaf')) || 0; if (state.viewMode === 'paiji') setLeafViewMode('spread'); else renderCurrentLeaf(); } });
+
+      document.getElementById('selectFontFamily').addEventListener('change', (e) => { state.fontFamily = e.target.value; state.fontLabel = e.target.options[e.target.selectedIndex].text.split(' · ')[0]; renderCurrentLeaf(); });
+      document.getElementById('inputLocalFontFile').addEventListener('change', async (e) => {
+        const file = e.target.files?.[0]; if (!file) return;
+        try {
+          const cleanName = 'CustomGujiFont_' + Date.now(); const fontFace = new FontFace(cleanName, await file.arrayBuffer()); await fontFace.load(); document.fonts.add(fontFace);
+          state.fontFamily = `'${cleanName}', 'Noto Serif TC', serif`; state.fontLabel = `本地：${file.name.replace(/\.(ttf|otf|woff2?)$/i, '')}`; renderCurrentLeaf(); showToast(`已成功加载本地字体：${file.name}`, '🔤');
+        } catch (err) { showToast('字体解析失败，请确认是有效的 TTF/OTF/WOFF 文件', '⚠️'); }
+      });
+      document.getElementById('btnQueryLocalFonts').addEventListener('click', async () => {
+        if ('queryLocalFonts' in window) {
+          try {
+            const fonts = await window.queryLocalFonts(); const families = [...new Set(fonts.map((f) => f.family))];
+            document.getElementById('localFontDatalist').innerHTML = families.map((f) => `<option value="${f}"></option>`).join('');
+            showToast(`已扫描到本机 ${families.length} 款字体，请在右侧下拉选用`, '🔍');
+          } catch (err) { showToast('请在右侧输入框直接填写本机字体名后点击应用', '🔤'); }
+        } else { showToast('请在右侧输入框直接填写本机字体名（如：楷体）后点击应用', '🔤'); }
+      });
+      document.getElementById('btnApplyCustomFont').addEventListener('click', () => { const val = document.getElementById('inputCustomFontName').value.trim(); if (!val) return showToast('请输入字体名称', '⚠️'); state.fontFamily = `'${val}', 'Noto Serif TC', serif`; state.fontLabel = `本机：${val}`; renderCurrentLeaf(); });
+      document.getElementById('rangeFontScale').addEventListener('input', (e) => { state.fontScale = Number(e.target.value); document.getElementById('labelFontScaleVal').textContent = `${state.fontScale}%`; renderCurrentLeaf(); });
+      document.getElementById('selectFontWeight').addEventListener('change', (e) => { state.fontWeight = e.target.value; renderCurrentLeaf(); });
+
+      document.getElementById('btnPreviewCoverNow').addEventListener('click', () => setLeafViewMode('paiji'));
+      document.getElementById('selectCoverCloth').addEventListener('change', (e) => { state.coverColor = e.target.value; document.getElementById('inputCoverCustomColor').value = e.target.value; document.getElementById('labelCoverHex').textContent = e.target.value; if (state.viewMode !== 'all_leaves') setLeafViewMode('paiji'); else renderCurrentLeaf(); });
+      document.getElementById('inputCoverCustomColor').addEventListener('input', (e) => { state.coverColor = e.target.value; document.getElementById('labelCoverHex').textContent = e.target.value; if (state.viewMode !== 'all_leaves') setLeafViewMode('paiji'); else renderCurrentLeaf(); });
+      ['selectBindingStyle', 'selectStripPos', 'selectStripBg', 'selectStripBorder'].forEach((id) => {
+        const keyMap = { selectBindingStyle: 'bindingStyle', selectStripPos: 'stripPos', selectStripBg: 'stripBg', selectStripBorder: 'stripBorder' };
+        document.getElementById(id).addEventListener('change', (e) => { state[keyMap[id]] = e.target.value; if (state.viewMode !== 'all_leaves') setLeafViewMode('paiji'); else renderCurrentLeaf(); });
+      });
+      ['inputCoverTitle', 'inputCoverSubtitle', 'inputCoverCalligrapher', 'inputCoverSeal', 'inputPaijiRight', 'inputPaijiCenter', 'inputPaijiLeft', 'inputPaijiSeal'].forEach((id) => {
+        const key = id.replace('input', '').replace(/^./, (c) => c.toLowerCase());
+        document.getElementById(id).addEventListener('input', (e) => { state[key] = e.target.value; if (state.viewMode !== 'all_leaves') setLeafViewMode('paiji'); else renderCurrentLeaf(); });
+      });
+      document.getElementById('chkCoverCorner').addEventListener('change', (e) => { state.showCoverCorner = e.target.checked; if (state.viewMode !== 'all_leaves') setLeafViewMode('paiji'); });
+      document.getElementById('chkPdfIncludeCover').addEventListener('change', (e) => { state.pdfIncludeCover = e.target.checked; });
+      document.getElementById('chkPdfIncludePaiji').addEventListener('change', (e) => { state.pdfIncludePaiji = e.target.checked; });
+
+      document.getElementById('selectEditionPreset').addEventListener('change', (e) => { applyEditionPreset(e.target.value); renderCurrentLeaf(); });
+      [['inputBookTitle', 'bookTitle'], ['inputBookVolume', 'bookVolume'], ['inputBookAuthor', 'bookAuthor'], ['inputEarTitle', 'earTitle'], ['inputPublisher', 'publisher'], ['inputSealText', 'sealText'], ['textareaSource', 'sourceText']].forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('input', (e) => { state[key] = e.target.value; renderCurrentLeaf(); });
+      });
+      document.getElementById('rangeCols').addEventListener('input', (e) => { state.colsPerHalf = Number(e.target.value); renderCurrentLeaf(); });
+      document.getElementById('rangeRows').addEventListener('input', (e) => { state.rowsPerCol = Number(e.target.value); renderCurrentLeaf(); });
+      [['selectBorderStyle', 'borderStyle'], ['selectGridRule', 'gridRule'], ['selectFishtail', 'fishtail'], ['selectMouth', 'mouth'], ['selectPaper', 'paper'], ['selectJudou', 'judou'], ['selectNoteFlow', 'noteFlow']].forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('change', (e) => { state[key] = e.target.value; renderCurrentLeaf(); });
+      });
+      [['chkShowEar', 'showEar'], ['chkShowProperLine', 'showProperLine'], ['chkShowSeal', 'showSeal'], ['chkShowVolumeHeader', 'showVolumeHeader']].forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('change', (e) => { state[key] = e.target.checked; renderCurrentLeaf(); });
+      });
+
+      document.querySelectorAll('.markup-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const pattern = btn.getAttribute('data-insert');
+          const start = ta.selectionStart || 0, end = ta.selectionEnd || 0, sel = ta.value.slice(start, end);
+          let rep = pattern;
+          if (pattern.includes('|')) { const [pre, suf] = pattern.split('|'); rep = pre + (sel || (pre.includes('卷标') || pre.includes('书耳') ? '' : '示例文字')) + suf; }
+          ta.value = ta.value.slice(0, start) + rep + ta.value.slice(end);
+          state.sourceText = ta.value; ta.focus(); renderCurrentLeaf();
+        });
+      });
+      document.getElementById('btnSimpToTrad').addEventListener('click', () => { let out = ''; for (const ch of state.sourceText) out += SIMP_TO_TRAD_MAP[ch] || ch; state.sourceText = out; ta.value = out; renderCurrentLeaf(); showToast('已完成简转繁', '🀄'); });
+      document.getElementById('btnAutoJudou').addEventListener('click', () => { state.sourceText = state.sourceText.replace(/[！？；!?.;]/g, '。').replace(/[，,：:]/g, '、'); ta.value = state.sourceText; renderCurrentLeaf(); showToast('已转换为传统句读', '🔴'); });
+      document.getElementById('btnStripPunct').addEventListener('click', () => { state.judou = 'hidden'; document.getElementById('selectJudou').value = 'hidden'; renderCurrentLeaf(); });
+
+      document.getElementById('btnViewSpread').addEventListener('click', () => setLeafViewMode('spread'));
+      document.getElementById('btnViewRightHalf').addEventListener('click', () => setLeafViewMode('right_half'));
+      document.getElementById('btnViewLeftHalf').addEventListener('click', () => setLeafViewMode('left_half'));
+      document.getElementById('btnViewPaiji').addEventListener('click', () => setLeafViewMode('paiji'));
+      document.getElementById('btnViewAllLeaves').addEventListener('click', () => setLeafViewMode('all_leaves'));
+      document.getElementById('selectJumpLeaf').addEventListener('change', (e) => { state.currentLeafIdx = Number(e.target.value) || 0; renderCurrentLeaf(); });
+      document.getElementById('btnNextLeaf').addEventListener('click', () => { if (state.currentLeafIdx < state.leaves.length - 1) { state.currentLeafIdx++; renderCurrentLeaf(); } });
+      document.getElementById('btnPrevLeaf').addEventListener('click', () => { if (state.currentLeafIdx > 0) { state.currentLeafIdx--; renderCurrentLeaf(); } });
+
+      document.getElementById('btnExportPdf').addEventListener('click', exportFullBookToPdf);
+      document.getElementById('btnExportPng').addEventListener('click', exportCurrentLeafToPng);
+      document.getElementById('btnExportProject').addEventListener('click', () => {
+        const proj = { schema: 'yunchuang-guji-project/v1', bookTitle: state.bookTitle, bookVolume: state.bookVolume, bookAuthor: state.bookAuthor, publisher: state.publisher, coverTitle: state.coverTitle, paijiCenter: state.paijiCenter, preset: document.getElementById('selectEditionPreset').value, sourceText: state.sourceText };
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(proj, null, 2)], { type: 'application/json;charset=utf-8' })); a.download = `${state.bookTitle}.guji.json`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); showToast('已导出 .guji.json 工程文件', '📦');
+      });
+      document.getElementById('btnExportTxt').addEventListener('click', () => {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([state.sourceText], { type: 'text/plain;charset=utf-8' })); a.download = `${state.bookTitle}_重排源码.txt`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      });
+      document.getElementById('btnPrintBook').addEventListener('click', () => { const prev = state.viewMode; state.viewMode = 'all_leaves'; renderCurrentLeaf(); window.print(); state.viewMode = prev; renderCurrentLeaf(); });
+
+      document.getElementById('catalogDivisionBtns').addEventListener('click', (e) => {
+        const btn = e.target.closest('.cat-div-btn'); if (!btn) return;
+        state.catalogDivision = btn.getAttribute('data-div');
+        document.querySelectorAll('.cat-div-btn').forEach((b) => { b.className = `cat-div-btn px-3 py-1 rounded-md text-xs font-medium ${b.getAttribute('data-div') === state.catalogDivision ? 'bg-[#9e2a2b] text-white' : 'bg-stone-200/80 hover:bg-stone-300 text-stone-800'}`; });
+        renderCatalog();
+      });
+      document.getElementById('selectProofStatus').addEventListener('change', (e) => { state.catalogStatus = e.target.value; renderCatalog(); });
+      document.getElementById('inputCatalogSearch').addEventListener('input', (e) => { state.catalogSearch = e.target.value; renderCatalog(); });
+      document.getElementById('catalogGrid').addEventListener('click', (e) => {
+        const lBtn = e.target.closest('.btn-book-load'); if (lBtn) return loadBookById(lBtn.getAttribute('data-load-id'), true);
+        const dBtn = e.target.closest('.btn-book-detail');
+        if (dBtn) {
+          const b = CLASSICAL_BOOKS.find((x) => x.id === dBtn.getAttribute('data-detail-id')); if (!b) return;
+          state.modalBookId = b.id; document.getElementById('modalBookCat').textContent = `${b.subcategory} · ${b.proofStatus}`;
+          document.getElementById('modalBookTitle').textContent = `《${b.title}》${b.volumes}`; document.getElementById('modalBookMeta').textContent = `${b.author} ｜ ${b.edition}`;
+          document.getElementById('modalBookSummary').textContent = b.summary; document.getElementById('modalBookExcerpt').textContent = b.sampleText;
+          document.getElementById('modalBookDetail').classList.remove('hidden');
+        }
+      });
+      document.getElementById('btnCloseModal').addEventListener('click', () => document.getElementById('modalBookDetail').classList.add('hidden'));
+      document.getElementById('btnModalLoadStudio').addEventListener('click', () => { document.getElementById('modalBookDetail').classList.add('hidden'); if (state.modalBookId) loadBookById(state.modalBookId, true); });
+
+      loadBookById('dongpo_shi', false);
+      renderCatalog();
+    });
+  </script>
+</body>
+</html>
