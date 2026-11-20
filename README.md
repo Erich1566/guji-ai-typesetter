@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/logo.png" alt="芸窗 Logo" width="128" />
+</div>
+
 # 芸窗·古籍 AI 排版系统 (Guji AI Typesetter)
 
 一款**零后端、纯静态可托管于 GitHub Pages** 的古籍雕版重排与 AI 标校工作台。支持将任意现代文本、本地文档或 GitHub 开源古籍语料一键重排为传统线装雕版书叶，并导出高清 PNG 与整书 PDF。
