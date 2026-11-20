@@ -1313,6 +1313,12 @@
         line = line.replace(/\[[书書]耳[:：]([^\]]+)\]/g, (_, earName) => { activeEar = earName.trim(); currentCol.earTitle = activeEar; return ''; });
         line = line.replace(/\[眉批[:：]([^\]]+)\]/g, (_, comment) => { currentCol.meipi = (currentCol.meipi ? currentCol.meipi + '　' : '') + comment.trim(); return ''; });
 
+        // 卷首标记独占一行（AI 分卷常见输出）时，自动以「书名+卷次」补全卷端题名，确保卷名出现在筒子页卷首
+        if (isVolumeTitleLine && line.trim().length === 0) {
+          const bt = (state.bookTitle || '').replace(/\s+/g, '');
+          line = (bt ? bt : '') + activeVol;
+        }
+
         if (line.trim().length === 0) {
           if (currentCol.cells.length > 0) pushCurrentCol(true);
           continue;
@@ -2037,7 +2043,7 @@
       const prompts = {
         notes: '你是资深古籍整理专家。请将用户提供的古籍文本中的注文、按语、音义、集解、校勘记精确识别出来，用【...】包裹（作为双行小字夹注），保留原有正文与换行，直接输出处理后的纯文本，不要输出Markdown代码块或额外解释。',
         proper: '你是资深古籍标校专家。请为文本中的人名、地名、朝代、官职加上〈...〉专名号，为典籍书名/篇名加上《...》书名号，并将现代标点规范化为古籍句读（。和、），直接输出处理后的纯文本，不要输出解释。',
-        volume: '你是古籍版式编辑。请为文本合理划分卷次与篇目，在每卷开头插入 [卷标:卷一] 与 [书耳:篇名]，并在关键段落首句前添加简明扼要的 [眉批:四至八字批语]，直接输出处理后的纯文本，不要输出解释。',
+        volume: '你是古籍版式编辑。请为文本合理划分卷次与篇目。每卷第一行必须按此格式输出：[卷标:卷一][书耳:篇名（二至四字）][眉批:四至八字批语]卷端题名——其中「卷端题名」为书名加卷次（如：文选卷第一），必须紧跟标记写在同一行，确保筒子页卷首显示卷名；随后另起一行接该卷正文。直接输出处理后的纯文本，不要输出解释。',
         custom: `你是古籍排版专家。本系统支持的标记语法为：【双行夹注】、〈专名号〉、《书名号》、[卷标:卷名]、[书耳:耳题]、[眉批:批语]。请严格按用户指令处理文本并直接输出结果：\n用户指令：${customInstruction}`
       };
       try {
