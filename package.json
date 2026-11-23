@@ -1,0 +1,14 @@
+{
+  "name": "guji-ai-typesetter",
+  "version": "1.0.0",
+  "description": "芸窗·古籍 AI 排版系统 — 零后端、纯静态的古籍雕版重排与 AI 标校工作台（本地一键部署）",
+  "private": true,
+  "scripts": {
+    "start": "npx -y serve -l 8080 .",
+    "start:py": "python -m http.server 8080",
+    "deploy": "git add -A && git commit -m \"deploy: npm run deploy\" --allow-empty && git push"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

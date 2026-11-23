@@ -35,6 +35,7 @@
 ```text
 .
 ├── index.html                          # 静态 Web 应用主程序（可直接部署 GitHub Pages）
+├── package.json                        # npm 一键启动/部署脚本（npm start 本地部署）
 ├── README.md                           # 项目说明文档
 ├── docs/
 │   ├── PRD.md                          # 产品需求文档
@@ -52,8 +53,35 @@
 
 ---
 
-## 🚀 快速使用与 GitHub Pages 部署
+## 🖥️ 本地部署（推荐）
 
-1. 将本仓库推送至您的 GitHub 账号（如 `https://github.com/<username>/guji-ai-typesetter`）。
-2. 进入仓库 **Settings → Pages**，将 **Source** 设置为 **GitHub Actions**（或 `Deploy from a branch` → `main` / `/ (root)`）。
-3. 部署完成后即可通过 `https://<username>.github.io/guji-ai-typesetter/` 在线使用。
+**零后端、零构建、无需安装任何依赖** —— 克隆仓库后一条命令即可启动：
+
+```bash
+git clone https://github.com/Erich1566/guji-ai-typesetter.git
+cd guji-ai-typesetter
+npm start
+```
+
+启动后浏览器打开 **http://localhost:8080** 即可使用全部功能（重排工坊、语料库直连、AI 标校、整书 PDF 导出）。
+
+### 一键启动方式（任选其一）
+
+| 方式 | 命令 | 环境要求 |
+| :--- | :--- | :--- |
+| **npm / npx 一键启动** | `npm start`（等价于 `npx -y serve -l 8080 .`） | Node.js ≥ 18，无需 `npm install` |
+| **Python 内置服务器** | `python -m http.server 8080`（或 `npm run start:py`） | Python ≥ 3.8 |
+| **免安装直接使用** | 双击 `index.html` 用浏览器打开 | 无；本地存储策略可能影响配置持久化，建议优先用前两种 |
+
+> 💡 AI 标校功能需在「✨ AI 标校与 API」面板配置您的自定义大模型 API（OpenAI 兼容格式），API Key 仅保存在本地浏览器，不经任何中转。
+
+### CLI 一键部署到专属 GitHub Pages（可选）
+
+如需拥有专属在线地址，将仓库推送到您的 GitHub 账号即可 —— 仓库已内置 Actions 工作流（`.github/workflows/pages.yml`），**推送即自动发布**，无需手动配置：
+
+```bash
+# 首次使用请先完成 GitHub 授权：gh auth login
+npm run deploy        # 等价于 git add -A && git commit && git push
+```
+
+1–2 分钟后即可通过 `https://<username>.github.io/guji-ai-typesetter/` 在线访问。若推送至您新建/fork 的仓库，请在 **Settings → Pages → Source** 中选择 **GitHub Actions**（`Deploy from a branch` → `main` / `(root)` 亦可）。
