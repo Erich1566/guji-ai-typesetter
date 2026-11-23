@@ -6,6 +6,12 @@
 
 一款**零后端、纯静态可托管于 GitHub Pages** 的古籍雕版重排与 AI 标校工作台。支持将任意现代文本、本地文档或 GitHub 开源古籍语料一键重排为传统线装雕版书叶，并导出高清 PNG 与整书 PDF。
 
+<div align="center">
+
+**🚀 在线试用（GitHub Pages）：[https://erich1566.github.io/guji-ai-typesetter/](https://erich1566.github.io/guji-ai-typesetter/)**
+
+</div>
+
 ---
 
 ## ✨ 核心特性
@@ -54,6 +60,8 @@
 ---
 
 ## 🖥️ 本地部署（推荐）
+
+在线试用版已部署于 **[https://erich1566.github.io/guji-ai-typesetter/](https://erich1566.github.io/guji-ai-typesetter/)** ，可先在线体验；如需本地私密使用或二次开发，按以下步骤部署。
 
 **零后端、零构建、无需安装任何依赖** —— 克隆仓库后一条命令即可启动：
 
