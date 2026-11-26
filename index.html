@@ -145,10 +145,10 @@
 
       <!-- Quick Action Buttons -->
       <div class="flex items-center gap-2 flex-wrap">
-        <button id="btnExportPdf" type="button" title="整书 PDF：按当前版面视图导出（筒子页全叶 / 单看右半叶 / 单看左半叶）" class="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#9e2a2b] hover:bg-[#822021] text-white border border-amber-400/40 transition flex items-center gap-1.5 shadow">
+        <button id="btnExportPdf" type="button" title="整书 PDF：导出时可选全叶（每叶一页）或半叶（每叶拆先右后左两页·版心对半切分）" class="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#9e2a2b] hover:bg-[#822021] text-white border border-amber-400/40 transition flex items-center gap-1.5 shadow">
           <span>📕</span><span>导出整书 PDF</span>
         </button>
-        <button id="btnExportPng" type="button" title="书叶 PNG：按当前版面视图导出（筒子页全叶 / 单看右半叶 / 单看左半叶）" class="px-3 py-1.5 rounded-md text-xs font-medium bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-500/40 transition flex items-center gap-1.5 shadow-sm">
+        <button id="btnExportPng" type="button" title="书叶 PNG：导出时可选全叶（筒子页）或半叶（右·左两份，版心对半切分）" class="px-3 py-1.5 rounded-md text-xs font-medium bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-500/40 transition flex items-center gap-1.5 shadow-sm">
           <span>🖼️</span><span>导出书叶 PNG</span>
         </button>
         <button id="btnExportProject" type="button" class="px-3 py-1.5 rounded-md text-xs font-medium bg-stone-800 hover:bg-stone-700 text-amber-100 border border-amber-800/60 transition flex items-center gap-1.5" title="导出 .guji.json 工程文件（与 Agent Skill 互通）">
@@ -178,6 +178,20 @@
       <p class="text-xs text-stone-600" id="pdfProgressStep">准备生成封面、牌记与全书筒子页</p>
       <div class="w-full h-3 bg-stone-200 rounded-full overflow-hidden border border-stone-300">
         <div id="pdfProgressBar" class="h-full bg-[#9e2a2b] transition-all duration-150" style="width: 0%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导出方式选择：全叶 / 半叶（先右后左·版心对半切分） -->
+  <div id="modalExportMode" class="fixed inset-0 z-50 hidden bg-black/65 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-[#fbf8f3] border-2 border-amber-900 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-3 text-center">
+      <div class="w-12 h-12 mx-auto rounded-full bg-amber-900/10 border border-amber-800/30 flex items-center justify-center text-2xl">📚</div>
+      <h3 class="font-guji text-lg font-bold text-stone-900">选择导出方式</h3>
+      <p class="text-xs text-stone-600 leading-relaxed">全叶：每叶导出一页筒子页。<br>半叶：每叶拆为「先右半、后左半」两页，版心对半切分，符合阅读顺序。</p>
+      <div class="grid grid-cols-1 gap-2 pt-1">
+        <button id="btnExportModeSpread" type="button" class="px-4 py-2.5 rounded-lg bg-[#9e2a2b] hover:bg-[#822021] text-white text-sm font-semibold transition">筒子页全叶（每叶一页）</button>
+        <button id="btnExportModeHalf" type="button" class="px-4 py-2.5 rounded-lg bg-amber-800 hover:bg-amber-700 text-amber-50 text-sm font-semibold transition">半叶（每叶拆右·左两页，版心对半）</button>
+        <button id="btnExportModeCancel" type="button" class="px-4 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-700 text-xs font-medium transition">取消</button>
       </div>
     </div>
   </div>
@@ -1815,17 +1829,13 @@
       ctx.restore();
     }
 
-    // 导出方式跟随当前版面视图：筒子页全叶 / 单看右半叶 / 单看左半叶
-    function getLeafExportMode() {
-      return (state.viewMode === 'right_half' || state.viewMode === 'left_half') ? state.viewMode : 'spread';
-    }
-
+    // 导出方式：spread=筒子页全叶（每叶一页）；half=半叶（每叶拆先右后左两页，版心对半切分）
     function drawLeafOnCanvas(leaf, canvas, modeOverride = null) {
-      const mode = modeOverride || getLeafExportMode();
+      const mode = modeOverride || 'spread';
       const isHalf = mode === 'right_half' || mode === 'left_half';
       const m = getCanvasMetrics();
       const { cols, rows, colW, cellH, bodyH, banxinW, halfW, totalBodyW, padX, padTop, fullH } = m;
-      const bodyW = isHalf ? halfW : totalBodyW;
+      const bodyW = isHalf ? halfW + banxinW / 2 : totalBodyW;
       const outW = padX * 2 + bodyW;
       const isIndigo = state.paper === 'paper-indigo';
       const fontScale = (Number(state.fontScale) || 100) / 100;
@@ -1850,7 +1860,7 @@
 
       const earText = leaf.earTitle || state.earTitle;
       if (state.showEar && earText && !noFrame) {
-        const earX = isHalf ? (mode === 'right_half' ? padX + halfW + 5 : padX - 38) : padX + totalBodyW + 5;
+        const earX = mode === 'left_half' ? padX - 38 : padX + bodyW + 5;
         const earY = padTop + 20, earW = 28, earH = 88;
         ctx.lineWidth = 2; ctx.strokeStyle = colors.frame; ctx.strokeRect(earX, earY, earW, earH);
         ctx.fillStyle = earColor; ctx.font = `bold 13px ${state.fontFamily}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1918,32 +1928,46 @@
         }
       }
 
+      const bx = padX + halfW;
+      // 版心绘制：clipHalf='right'/'left' 时仅绘制版心对应一半（半叶导出版心对半切分）
+      const drawBanxin = (clipHalf) => {
+        ctx.save();
+        if (clipHalf === 'right') {
+          ctx.translate(-(halfW + banxinW / 2), 0);
+          ctx.beginPath(); ctx.rect(bx + banxinW / 2, padTop - 6, banxinW / 2, bodyH + 12); ctx.clip();
+        } else if (clipHalf === 'left') {
+          ctx.beginPath(); ctx.rect(bx, padTop - 6, banxinW / 2, bodyH + 12); ctx.clip();
+        }
+        if (!noFrame) { ctx.strokeStyle = colors.frame; ctx.lineWidth = 1.4; ctx.strokeRect(bx, padTop, banxinW, bodyH); }
+        if (state.fishtail !== 'none') {
+          const fy1 = padTop + 145; ctx.fillStyle = mouthColor; ctx.fillRect(bx + 2, fy1, banxinW - 4, 4);
+          ctx.beginPath(); ctx.moveTo(bx + 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 26); ctx.lineTo(bx + banxinW / 2, fy1 + 15); ctx.lineTo(bx + 2, fy1 + 26); ctx.closePath(); ctx.fill();
+          if (state.fishtail === 'double_solid' || state.fishtail === 'hollow_floral') {
+            const fy2 = padTop + bodyH - 135;
+            ctx.beginPath(); ctx.moveTo(bx + 2, fy2); ctx.lineTo(bx + banxinW / 2, fy2 + 11); ctx.lineTo(bx + banxinW - 2, fy2); ctx.lineTo(bx + banxinW - 2, fy2 + 19); ctx.lineTo(bx + 2, fy2 + 19); ctx.closePath(); ctx.fill();
+            ctx.fillRect(bx + 2, fy2 + 22, banxinW - 4, 4);
+          }
+        }
+        ctx.fillStyle = mouthColor; ctx.textAlign = 'center';
+        ctx.font = `bold 13px ${state.fontFamily}`; state.bookTitle.slice(0, 7).split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + 34 + idx * 15));
+        ctx.font = `600 12px ${state.fontFamily}`; `${leaf.volume || state.bookVolume}　第${toChineseNum(leaf.volLeafNumber)}葉`.split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + 210 + idx * 16));
+        ctx.font = `500 11px ${state.fontFamily}`; state.publisher.slice(0, 6).split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + bodyH - 95 + idx * 14));
+        ctx.restore();
+      };
       if (isHalf) {
-        drawHalfLeaf(mode === 'right_half' ? leaf.rightCols : leaf.leftCols, padX, mode === 'right_half');
+        drawBanxin(mode === 'right_half' ? 'right' : 'left');
+        if (mode === 'right_half') drawHalfLeaf(leaf.rightCols, padX + banxinW / 2, true);
+        else drawHalfLeaf(leaf.leftCols, padX, false);
         ctx.restore();
         return;
       }
       drawHalfLeaf(leaf.leftCols, padX, false);
-      const bx = padX + halfW;
-      if (!noFrame) { ctx.strokeStyle = colors.frame; ctx.lineWidth = 1.4; ctx.strokeRect(bx, padTop, banxinW, bodyH); }
-      if (state.fishtail !== 'none') {
-        const fy1 = padTop + 145; ctx.fillStyle = mouthColor; ctx.fillRect(bx + 2, fy1, banxinW - 4, 4);
-        ctx.beginPath(); ctx.moveTo(bx + 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 26); ctx.lineTo(bx + banxinW / 2, fy1 + 15); ctx.lineTo(bx + 2, fy1 + 26); ctx.closePath(); ctx.fill();
-        if (state.fishtail === 'double_solid' || state.fishtail === 'hollow_floral') {
-          const fy2 = padTop + bodyH - 135;
-          ctx.beginPath(); ctx.moveTo(bx + 2, fy2); ctx.lineTo(bx + banxinW / 2, fy2 + 11); ctx.lineTo(bx + banxinW - 2, fy2); ctx.lineTo(bx + banxinW - 2, fy2 + 19); ctx.lineTo(bx + 2, fy2 + 19); ctx.closePath(); ctx.fill();
-          ctx.fillRect(bx + 2, fy2 + 22, banxinW - 4, 4);
-        }
-      }
-      ctx.fillStyle = mouthColor; ctx.textAlign = 'center';
-      ctx.font = `bold 13px ${state.fontFamily}`; state.bookTitle.slice(0, 7).split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + 34 + idx * 15));
-      ctx.font = `600 12px ${state.fontFamily}`; `${leaf.volume || state.bookVolume}　第${toChineseNum(leaf.volLeafNumber)}葉`.split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + 210 + idx * 16));
-      ctx.font = `500 11px ${state.fontFamily}`; state.publisher.slice(0, 6).split('').forEach((ch, idx) => ctx.fillText(ch, bx + banxinW / 2, padTop + bodyH - 95 + idx * 14));
+      drawBanxin(null);
       drawHalfLeaf(leaf.rightCols, padX + halfW + banxinW, true);
       ctx.restore();
     }
 
-    function exportCurrentLeafToPng() {
+    function exportCurrentLeafToPng(mode = 'spread') {
       parseAndPaginate();
       const canvas = document.getElementById('exportCanvas');
       if (state.viewMode === 'paiji') {
@@ -1953,17 +1977,25 @@
         showToast('已导出自定义线装封面与牌记 PNG', '🖼️'); return;
       }
       const leaf = state.leaves[state.currentLeafIdx] || state.leaves[0];
-      const mode = getLeafExportMode();
-      drawLeafOnCanvas(leaf, canvas, mode);
-      const modeName = mode === 'right_half' ? '右半叶' : mode === 'left_half' ? '左半叶' : '筒子页全叶';
-      const link = document.createElement('a'); link.download = `${state.bookTitle}_${leaf.volume}_第${toChineseNum(leaf.volLeafNumber)}叶_${modeName}.png`; link.href = canvas.toDataURL('image/png');
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
-      showToast(`已导出${modeName}书叶 PNG（${leaf.volume}·第${toChineseNum(leaf.volLeafNumber)}叶）`, '🖼️');
+      const savePage = (halfMode, suffix) => {
+        drawLeafOnCanvas(leaf, canvas, halfMode);
+        const link = document.createElement('a'); link.download = `${state.bookTitle}_${leaf.volume}_第${toChineseNum(leaf.volLeafNumber)}叶_${suffix}.png`; link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      };
+      if (mode === 'half') {
+        savePage('right_half', '右半叶');
+        setTimeout(() => savePage('left_half', '左半叶'), 450);
+        showToast('已按半叶导出 PNG（先右后左 · 共 2 张，版心对半切分）', '🖼️');
+      } else {
+        savePage('spread', '筒子页全叶');
+        showToast(`已导出筒子页全叶书叶 PNG（${leaf.volume}·第${toChineseNum(leaf.volLeafNumber)}叶）`, '🖼️');
+      }
     }
 
-    async function exportFullBookToPdf() {
+    async function exportFullBookToPdf(mode = 'spread') {
       parseAndPaginate();
       const totalLeaves = state.leaves.length;
+      const isHalf = mode === 'half';
       const includeCoverPaiji = state.pdfIncludeCover || state.pdfIncludePaiji;
       if (!window.jspdf || !window.jspdf.jsPDF) {
         const prevMode = state.viewMode; state.viewMode = 'all_leaves'; renderCurrentLeaf(); window.print(); state.viewMode = prevMode; renderCurrentLeaf(); return;
@@ -1974,14 +2006,14 @@
       modal.classList.remove('hidden');
       try {
         const m = getCanvasMetrics();
-        const leafMode = getLeafExportMode();
-        const leafModeName = leafMode === 'right_half' ? '右半叶' : leafMode === 'left_half' ? '左半叶' : '筒子页全叶';
-        const leafOutW = m.padX * 2 + (leafMode === 'spread' ? m.totalBodyW : m.halfW);
+        const leafOutW = isHalf ? m.padX * 2 + m.halfW + m.banxinW / 2 : m.fullW;
+        const pagesPerLeaf = isHalf ? 2 : 1;
+        const totalPdfPages = totalLeaves * pagesPerLeaf;
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ orientation: m.fullW >= m.fullH ? 'landscape' : 'portrait', unit: 'pt', format: [m.fullW, m.fullH] });
         const canvas = document.getElementById('exportCanvas');
         let pageAdded = false;
-        const totalSteps = (includeCoverPaiji ? 1 : 0) + totalLeaves;
+        const totalSteps = (includeCoverPaiji ? 1 : 0) + totalPdfPages;
         let doneSteps = 0;
         if (includeCoverPaiji) {
           stepEl.textContent = '正在渲染线装书衣题签与镌刻牌记页...';
@@ -1993,17 +2025,21 @@
         }
         for (let idx = 0; idx < totalLeaves; idx++) {
           const lf = state.leaves[idx];
-          stepEl.textContent = `正在雕版渲染正文书叶（${leafModeName}）：${lf.volume} 第${toChineseNum(lf.volLeafNumber)}叶 (${idx + 1} / ${totalLeaves})...`;
-          barEl.style.width = `${Math.round(((doneSteps + 1) / totalSteps) * 100)}%`;
-          await new Promise((r) => setTimeout(r, 20));
-          if (pageAdded) pdf.addPage([leafOutW, m.fullH], leafOutW >= m.fullH ? 'landscape' : 'portrait');
-          drawLeafOnCanvas(lf, canvas, leafMode);
-          pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, leafOutW, m.fullH);
-          pageAdded = true; doneSteps++;
+          const halfModes = isHalf ? ['right_half', 'left_half'] : ['spread'];
+          for (let h = 0; h < halfModes.length; h++) {
+            const pageName = isHalf ? (h === 0 ? '右半叶' : '左半叶') : '筒子页全叶';
+            stepEl.textContent = `正在雕版渲染正文书叶（${pageName}）：${lf.volume} 第${toChineseNum(lf.volLeafNumber)}叶 (${doneSteps - (includeCoverPaiji ? 1 : 0) + 1} / ${totalPdfPages})...`;
+            barEl.style.width = `${Math.round(((doneSteps + 1) / totalSteps) * 100)}%`;
+            await new Promise((r) => setTimeout(r, 20));
+            if (pageAdded) pdf.addPage([leafOutW, m.fullH], leafOutW >= m.fullH ? 'landscape' : 'portrait');
+            drawLeafOnCanvas(lf, canvas, isHalf ? halfModes[h] : 'spread');
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, leafOutW, m.fullH);
+            pageAdded = true; doneSteps++;
+          }
         }
-        const modeSuffix = leafMode === 'spread' ? '' : `_${leafModeName}`;
-        pdf.save(`${state.bookTitle}_整书古籍重排(${leafModeName}·共${totalLeaves}叶)${modeSuffix}.pdf`);
-        showToast(`整书 PDF 导出完成（${leafModeName} · 含封面牌记及正文共 ${totalLeaves} 叶）`, '📕');
+        const modeTag = isHalf ? `半叶·先右后左·共${totalPdfPages}页` : `全叶·共${totalLeaves}叶`;
+        pdf.save(`${state.bookTitle}_整书古籍重排(${modeTag}).pdf`);
+        showToast(`整书 PDF 导出完成（${isHalf ? '半叶·版心对半切分' : '筒子页全叶'} · 正文共 ${totalPdfPages} 页）`, '📕');
       } catch (err) {
         showToast('PDF 合成遇到问题，已启动浏览器原生打印导出', '🖨️');
       } finally {
@@ -2496,8 +2532,28 @@
       document.getElementById('btnNextLeaf').addEventListener('click', () => { if (state.currentLeafIdx < state.leaves.length - 1) { state.currentLeafIdx++; renderCurrentLeaf(); } });
       document.getElementById('btnPrevLeaf').addEventListener('click', () => { if (state.currentLeafIdx > 0) { state.currentLeafIdx--; renderCurrentLeaf(); } });
 
-      document.getElementById('btnExportPdf').addEventListener('click', exportFullBookToPdf);
-      document.getElementById('btnExportPng').addEventListener('click', exportCurrentLeafToPng);
+      document.getElementById('btnExportPdf').addEventListener('click', () => openExportModeModal('pdf'));
+      document.getElementById('btnExportPng').addEventListener('click', () => {
+        if (state.viewMode === 'paiji') { exportCurrentLeafToPng('spread'); return; }
+        openExportModeModal('png');
+      });
+      const openExportModeModal = (kind) => {
+        window.__pendingExportKind = kind;
+        document.getElementById('modalExportMode').classList.remove('hidden');
+      };
+      document.getElementById('btnExportModeSpread').addEventListener('click', () => {
+        document.getElementById('modalExportMode').classList.add('hidden');
+        const kind = window.__pendingExportKind;
+        if (kind === 'png') exportCurrentLeafToPng('spread'); else exportFullBookToPdf('spread');
+      });
+      document.getElementById('btnExportModeHalf').addEventListener('click', () => {
+        document.getElementById('modalExportMode').classList.add('hidden');
+        const kind = window.__pendingExportKind;
+        if (kind === 'png') exportCurrentLeafToPng('half'); else exportFullBookToPdf('half');
+      });
+      document.getElementById('btnExportModeCancel').addEventListener('click', () => {
+        document.getElementById('modalExportMode').classList.add('hidden');
+      });
       document.getElementById('btnExportProject').addEventListener('click', () => {
         const proj = { schema: 'yunchuang-guji-project/v1', bookTitle: state.bookTitle, bookVolume: state.bookVolume, bookAuthor: state.bookAuthor, publisher: state.publisher, coverTitle: state.coverTitle, paijiCenter: state.paijiCenter, preset: document.getElementById('selectEditionPreset').value, sourceText: state.sourceText };
         ['textColor', 'noteColor', 'meipiColor', 'frameColor', 'ruleColor', 'mouthColor', 'earColor'].forEach((k) => { if (state[k]) proj[k] = state[k]; });
