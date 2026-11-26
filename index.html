@@ -516,6 +516,7 @@
                 <option value="lr_double">左右双边上下单边</option>
                 <option value="all_double" selected>四周双边（文武边）</option>
                 <option value="all_single">四周单边</option>
+                <option value="none">无边框（裸叶）</option>
               </select>
             </div>
 
@@ -611,10 +612,10 @@
 
             <div class="col-span-2 sm:col-span-3">
               <div class="flex justify-between text-[11px] text-stone-600 mb-0.5">
-                <label for="rangeNoteSpacing">小字上下字距（隔行疏排）</label>
-                <span id="labelNoteSpacingVal" class="font-semibold text-amber-900">标准（0%）</span>
+                <label for="rangeNoteSpacing">小字上下字距（行距百分比，小于大字）</label>
+                <span id="labelNoteSpacingVal" class="font-semibold text-amber-900">标准（100%行距）</span>
               </div>
-              <input id="rangeNoteSpacing" type="range" min="0" max="100" step="5" value="0" class="w-full accent-amber-800 cursor-pointer" />
+              <input id="rangeNoteSpacing" type="range" min="20" max="100" step="5" value="100" class="w-full accent-amber-800 cursor-pointer" />
             </div>
           </div>
 
@@ -1197,7 +1198,7 @@
       judou: 'vermilion_side',
       noteFlow: 'column_split',
       textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '',
-      noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '', noteLetterSpacing: 0,
+      noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '', noteLetterSpacing: 100,
       showEar: true,
       showProperLine: true,
       showSeal: true,
@@ -1384,41 +1385,39 @@
             }
             let ptr = 0;
             const notePerRow = Math.min(4, Math.max(1, Number(state.noteCharsPerRow) || 2));
-            const skipRows = noteSkipRows();
-            const rowConsume = 1 + skipRows;
-            const makeDualCell = (items) => {
-              const filled = [];
-              for (let k = 0; k < notePerRow; k++) filled.push(items[k] || { char: '　', judou: '' });
-              if (notePerRow === 2) {
-                return { type: 'dual', rightChar: filled[0].char, leftChar: filled[1].char, rightProper: filled[0].proper, leftProper: filled[1].proper, rightBook: filled[0].bookTitle, leftBook: filled[1].bookTitle, rightJudou: filled[0].judou, leftJudou: filled[1].judou };
-              }
-              return { type: 'dual', dualChars: filled.map((it) => ({ char: it.char, proper: it.proper, bookTitle: it.bookTitle, judou: it.judou })) };
-            };
-            const pushNoteRow = (cell) => {
-              currentCol.cells.push(cell);
-              for (let s = 0; s < skipRows && currentCol.cells.length < rows; s++) currentCol.cells.push({ type: 'empty' });
+            const linesPerCell = noteLinesPerCell();
+            const makeLine = (items) => { const f = []; for (let k = 0; k < notePerRow; k++) f.push(items[k] || { char: '　', judou: '' }); return f; };
+            let pending = [];
+            const flushPending = () => {
+              if (!pending.length) return;
+              while (pending.length < linesPerCell) pending.push(makeLine([]));
+              currentCol.cells.push({ type: 'dual', lines: pending });
+              pending = [];
             };
             while (ptr < smallItems.length) {
               ensureCellSpace();
-              const availInCol = rows - currentCol.cells.length;
-              const segCells = Math.min(Math.floor(availInCol / rowConsume), Math.ceil((smallItems.length - ptr) / notePerRow));
-              if (segCells <= 0) { pushCurrentCol(true); continue; }
+              const availLines = (rows - currentCol.cells.length) * linesPerCell - pending.length;
+              const segLines = Math.min(availLines, smallItems.length - ptr);
+              if (segLines < notePerRow) { flushPending(); pushCurrentCol(true); continue; }
               if (state.noteFlow === 'column_split') {
-                const chunk = smallItems.slice(ptr, ptr + segCells * notePerRow);
+                const chunk = smallItems.slice(ptr, ptr + segLines);
                 const perSubCol = Math.ceil(chunk.length / notePerRow);
-                for (let r = 0; r < segCells; r++) {
-                  const rowItems = [];
-                  for (let k = 0; k < notePerRow; k++) rowItems.push(chunk[k * perSubCol + r] || { char: '　', judou: '' });
-                  pushNoteRow(makeDualCell(rowItems));
+                for (let r = 0; r < segLines; r++) {
+                  const lineItems = [];
+                  for (let k = 0; k < notePerRow; k++) lineItems.push(chunk[k * perSubCol + r] || { char: '　', judou: '' });
+                  pending.push(makeLine(lineItems));
+                  if (pending.length >= linesPerCell) flushPending();
                 }
-                ptr += segCells * notePerRow;
+                ptr += segLines;
               } else {
-                for (let r = 0; r < segCells; r++) {
-                  pushNoteRow(makeDualCell(smallItems.slice(ptr, ptr + notePerRow)));
+                for (let r = 0; r < segLines; r++) {
+                  pending.push(makeLine(smallItems.slice(ptr, ptr + notePerRow)));
                   ptr += notePerRow;
+                  if (pending.length >= linesPerCell) flushPending();
                 }
               }
             }
+            flushPending();
             continue;
           }
 
@@ -1489,13 +1488,13 @@
       };
     }
 
-    // 双行小字单元格归一化：兼容旧版 rightChar/leftChar 与新版 dualChars（每行 N 字）
-    function dualCellItems(cell) {
-      if (cell.dualChars) return cell.dualChars;
-      return [
+    // 双行小字单元格 → 行数组（兼容旧版 rightChar/leftChar 单行结构与新版多行 lines 结构）
+    function dualCellLines(cell) {
+      if (cell.lines) return cell.lines;
+      return [[
         { char: cell.rightChar, proper: cell.rightProper, bookTitle: cell.rightBook, judou: cell.rightJudou },
         { char: cell.leftChar, proper: cell.leftProper, bookTitle: cell.leftBook, judou: cell.leftJudou }
-      ];
+      ]];
     }
 
     // DOM 书叶单元格几何（与 buildSingleLeafHtml 保持一致），用于字号防溢出上限计算
@@ -1507,9 +1506,14 @@
       return { rows, cellFontPx, colWidthPx, cellHpx };
     }
 
-    // 双行小字上下字距：疏排强度 → 每个小字行在分页时跨越的网格行数（0=标准紧排，最大隔3行）
-    function noteSkipRows() {
-      return Math.min(3, Math.max(0, Math.floor((Number(state.noteLetterSpacing) || 0) / 25)));
+    // 小字行距百分比（20%-100%，始终小于大字行距）：数值越小字距越紧 → 每格容纳的小字行数
+    function noteLinesPerCell() {
+      const spacing = Math.min(100, Math.max(20, Number(state.noteLetterSpacing) || 100));
+      const box = getLeafCellBox();
+      const noteFontSizePx = Math.min(box.cellFontPx * 0.56 * ((Number(state.noteFontScale) || 100) / 100), box.cellHpx * 0.78, (box.colWidthPx / Math.min(4, Math.max(1, Number(state.noteCharsPerRow) || 2))) * 0.82);
+      const bySpacing = Math.max(1, Math.round(100 / spacing));
+      const byFit = Math.max(1, Math.floor(box.cellHpx / (noteFontSizePx * 1.15)));
+      return Math.max(1, Math.min(bySpacing, byFit, 4));
     }
 
     function buildFishtailSvg(type, isBottom, isIndigo, fillOverride) {
@@ -1604,15 +1608,19 @@
             const charDisplay = cell.isInkBlock ? `<span class="inline-block w-[0.75em] h-[0.78em] bg-current rounded-[1px]"></span>` : cell.isPunctCell ? `<span style="color:${judouColor};">${cell.char}</span>` : cell.char;
             cellsHtml += `<div class="relative w-full flex-1 flex items-center justify-center font-guji ${bookClass}" style="color:${colors.ink}; ${properStyle} font-weight:${cellWeight}; transform: scale(${cellScale});"><span class="leading-none">${charDisplay}</span>${judouBadge}</div>`;
           } else if (cell.type === 'dual') {
-            const items = dualCellItems(cell);
-            // 防溢出：小字字号上限 = 单元格高×0.78 与「列宽÷每行字数×0.82」取小
-            const noteFontSizePx = Math.min(cellBox.cellFontPx * 0.56 * noteScaleRatio, cellBox.cellHpx * 0.78, (cellBox.colWidthPx / items.length) * 0.82);
-            const subsHtml = items.map((item) => {
-              const iJudou = item.judou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${item.judou}</span>` : '';
-              const iProper = state.showProperLine && item.proper ? `border-left: 1px solid ${properLineColor};` : '';
-              return `<div class="relative flex-1 h-full flex items-center justify-center leading-none" style="font-size:${noteFontSizePx.toFixed(2)}px; ${iProper}"><span>${item.char}</span>${iJudou}</div>`;
+            const lines = dualCellLines(cell);
+            const charsPerLine = Math.max(1, lines[0].length);
+            // 防溢出：小字字号上限 = 单元格高÷行数×0.78 与「列宽÷每行字数×0.82」取小
+            const noteFontSizePx = Math.min(cellBox.cellFontPx * 0.56 * noteScaleRatio, (cellBox.cellHpx / lines.length) * 0.78, (cellBox.colWidthPx / charsPerLine) * 0.82);
+            const linesHtml = lines.map((items) => {
+              const lineHtml = items.map((item) => {
+                const iJudou = item.judou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${item.judou}</span>` : '';
+                const iProper = state.showProperLine && item.proper ? `border-left: 1px solid ${properLineColor};` : '';
+                return `<div class="relative flex-1 h-full flex items-center justify-center leading-none" style="font-size:${noteFontSizePx.toFixed(2)}px; ${iProper}"><span>${item.char}</span>${iJudou}</div>`;
+              }).join('');
+              return `<div class="w-full flex-1 flex flex-row-reverse items-center justify-around px-[1px]">${lineHtml}</div>`;
             }).join('');
-            cellsHtml += `<div class="relative w-full flex-1 flex flex-row-reverse items-center justify-around font-guji px-[1px]" style="font-weight:${fontWeight}; color:${colors.note}; ${noteFontCss}">${subsHtml}</div>`;
+            cellsHtml += `<div class="relative w-full flex-1 flex flex-col justify-around font-guji" style="font-weight:${fontWeight}; color:${colors.note}; ${noteFontCss}">${linesHtml}</div>`;
           }
         });
         let sealHtml = '';
@@ -1631,19 +1639,20 @@
       const rows = Number(state.rowsPerCol) || 18;
       const isIndigo = state.paper === 'paper-indigo';
       const colors = getEffectiveColors();
+      const noFrame = state.borderStyle === 'none';
       const frameColor = state.frameColor || (isIndigo ? '#e6c675' : '#1d1612');
       const cellFontPx = rows <= 14 ? 21 : rows <= 18 ? 18 : rows <= 21 ? 15.5 : 14;
       const colWidthPx = rows <= 14 ? 38 : rows <= 18 ? 33 : 29;
       const leafBodyHeightPx = 500;
-      const outerTopBottom = state.borderStyle === 'all_single' ? '2px' : '4px';
-      const outerLeftRight = state.borderStyle === 'all_single' ? '2px' : '4px';
-      const hasInnerAll = state.borderStyle === 'all_double';
-      const hasInnerLR = state.borderStyle === 'lr_double' || state.borderStyle === 'all_double';
+      const outerTopBottom = noFrame ? '0px' : state.borderStyle === 'all_single' ? '2px' : '4px';
+      const outerLeftRight = noFrame ? '0px' : state.borderStyle === 'all_single' ? '2px' : '4px';
+      const hasInnerAll = !noFrame && state.borderStyle === 'all_double';
+      const hasInnerLR = !noFrame && (state.borderStyle === 'lr_double' || state.borderStyle === 'all_double');
       const innerBorderCss = `border-top:${hasInnerAll ? '1.2px' : '0px'} solid ${frameColor}; border-bottom:${hasInnerAll ? '1.2px' : '0px'} solid ${frameColor}; border-left:${hasInnerLR ? '1.2px' : '0px'} solid ${frameColor}; border-right:${hasInnerLR ? '1.2px' : '0px'} solid ${frameColor};`;
       const trunkHtml = state.mouth === 'white' ? `<div class="flex-1"></div>` : state.mouth === 'thick_black' ? `<div class="flex-1 w-2.5 mx-auto" style="background:${frameColor};"></div>` : `<div class="flex-1 w-[1.5px] mx-auto" style="background:${frameColor};"></div>`;
 
       const banxinHtml = `
-        <div class="w-11 shrink-0 h-full flex flex-col items-center justify-between border-x select-none font-guji" style="border-color:${frameColor};">
+        <div class="w-11 shrink-0 h-full flex flex-col items-center justify-between select-none font-guji ${noFrame ? '' : 'border-x'}" style="${noFrame ? '' : `border-color:${frameColor};`}">
           <div class="h-10 w-full flex flex-col">${trunkHtml}</div>
           <div class="py-1 text-[11px] font-bold tracking-tighter leading-none text-center overflow-hidden" style="writing-mode: vertical-rl; max-height: 120px; color:${colors.mouth};">${state.bookTitle.slice(0, 8)}</div>
           <div class="w-full">${buildFishtailSvg(state.fishtail, false, isIndigo, colors.mouth)}</div>
@@ -1654,8 +1663,8 @@
         </div>`;
 
       const earText = leaf.earTitle || state.earTitle;
-      const rightEarHtml = state.showEar && earText ? `<div class="absolute -right-[26px] top-6 w-[26px] py-2 border-2 border-l-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl; color:${colors.ear};">${earText.slice(0, 4)}</div>` : '';
-      const leftEarHtml = state.showEar && earText && mode === 'left_half' ? `<div class="absolute -left-[26px] top-6 w-[26px] py-2 border-2 border-r-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl; color:${colors.ear};">${earText.slice(0, 4)}</div>` : '';
+      const rightEarHtml = state.showEar && earText && !noFrame ? `<div class="absolute -right-[26px] top-6 w-[26px] py-2 border-2 border-l-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl; color:${colors.ear};">${earText.slice(0, 4)}</div>` : '';
+      const leftEarHtml = state.showEar && earText && mode === 'left_half' && !noFrame ? `<div class="absolute -left-[26px] top-6 w-[26px] py-2 border-2 border-r-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl; color:${colors.ear};">${earText.slice(0, 4)}</div>` : '';
       const showRight = mode === 'spread' || mode === 'right_half' || mode === 'all_leaves';
       const showLeft = mode === 'spread' || mode === 'left_half' || mode === 'all_leaves';
       const halfWidth = cols * colWidthPx;
@@ -1791,12 +1800,15 @@
       const noteColor = colors.note, meipiColor = colors.meipi, mouthColor = colors.mouth, earColor = colors.ear;
       const noteScaleRatio = (Number(state.noteFontScale) || 100) / 100;
       const noteFontCss = state.noteFontFamily || state.fontFamily;
-      ctx.strokeStyle = colors.frame; ctx.lineWidth = state.borderStyle === 'all_single' ? 2 : 4.5;
-      ctx.strokeRect(padX - 5, padTop - 5, totalBodyW + 10, bodyH + 10);
-      ctx.lineWidth = 1.4; ctx.strokeRect(padX, padTop, totalBodyW, bodyH);
+      const noFrame = state.borderStyle === 'none';
+      if (!noFrame) {
+        ctx.strokeStyle = colors.frame; ctx.lineWidth = state.borderStyle === 'all_single' ? 2 : 4.5;
+        ctx.strokeRect(padX - 5, padTop - 5, totalBodyW + 10, bodyH + 10);
+        ctx.lineWidth = 1.4; ctx.strokeRect(padX, padTop, totalBodyW, bodyH);
+      }
 
       const earText = leaf.earTitle || state.earTitle;
-      if (state.showEar && earText) {
+      if (state.showEar && earText && !noFrame) {
         const earX = padX + totalBodyW + 5, earY = padTop + 20, earW = 28, earH = 88;
         ctx.lineWidth = 2; ctx.strokeStyle = colors.frame; ctx.strokeRect(earX, earY, earW, earH);
         ctx.fillStyle = earColor; ctx.font = `bold 13px ${state.fontFamily}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1835,16 +1847,20 @@
                 ctx.fillText(cell.judou, colLeftX + colW - 7, cellTopY + cellH - 5);
               }
             } else if (cell.type === 'dual') {
-              const nItems = dualCellItems(cell);
-              // 防溢出：小字字号上限 = 列宽÷每行字数×0.82
-              const smallFont = Math.min(Math.max(8, Math.floor(cellH * 0.43 * fontScale * noteScaleRatio)), Math.max(7, Math.floor(colW / nItems.length * 0.82)));
-              ctx.font = `${fontWeight} ${smallFont}px ${noteFontCss}`;
-              ctx.fillStyle = noteColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-              nItems.forEach((item, idx) => {
-                ctx.fillText(item.char, colLeftX + colW * (1 - (idx + 0.5) / nItems.length), cellCenterY);
-              });
-              nItems.forEach((item, idx) => {
-                if (item.judou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 10px ${state.fontFamily}`; ctx.fillText(item.judou, colLeftX + colW * (1 - idx / nItems.length) - 4, cellTopY + cellH - 3); }
+              const lines = dualCellLines(cell);
+              const charsPerLine = Math.max(1, lines[0].length);
+              // 防溢出：小字字号上限 = 列宽÷每行字数×0.82 与 格高÷行数×0.78 取小
+              const smallFont = Math.min(Math.max(8, Math.floor(cellH * 0.43 * fontScale * noteScaleRatio)), Math.max(7, Math.floor(colW / charsPerLine * 0.82)), Math.max(7, Math.floor(cellH / lines.length * 0.78)));
+              ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              lines.forEach((items, li) => {
+                const lineCenterY = cellTopY + cellH * (li + 0.5) / lines.length;
+                ctx.fillStyle = noteColor; ctx.font = `${fontWeight} ${smallFont}px ${noteFontCss}`;
+                items.forEach((item, idx) => {
+                  ctx.fillText(item.char, colLeftX + colW * (1 - (idx + 0.5) / items.length), lineCenterY);
+                });
+                items.forEach((item, idx) => {
+                  if (item.judou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 9px ${state.fontFamily}`; ctx.fillText(item.judou, colLeftX + colW * (1 - idx / items.length) - 3, lineCenterY + smallFont * 0.5 + 2); }
+                });
               });
             }
           });
@@ -1862,7 +1878,7 @@
 
       drawHalfLeaf(leaf.leftCols, padX, false);
       const bx = padX + halfW;
-      ctx.strokeStyle = colors.frame; ctx.lineWidth = 1.4; ctx.strokeRect(bx, padTop, banxinW, bodyH);
+      if (!noFrame) { ctx.strokeStyle = colors.frame; ctx.lineWidth = 1.4; ctx.strokeRect(bx, padTop, banxinW, bodyH); }
       if (state.fishtail !== 'none') {
         const fy1 = padTop + 145; ctx.fillStyle = mouthColor; ctx.fillRect(bx + 2, fy1, banxinW - 4, 4);
         ctx.beginPath(); ctx.moveTo(bx + 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 7); ctx.lineTo(bx + banxinW - 2, fy1 + 26); ctx.lineTo(bx + banxinW / 2, fy1 + 15); ctx.lineTo(bx + 2, fy1 + 26); ctx.closePath(); ctx.fill();
@@ -2165,9 +2181,9 @@
       document.getElementById('selectNoteFontScale').value = String(state.noteFontScale || 100);
       document.getElementById('selectNoteChars').value = String(state.noteCharsPerRow || 2);
       document.getElementById('selectNoteFontFamily').value = state.noteFontFamily || '';
-      const skipVal = noteSkipRows();
-      document.getElementById('rangeNoteSpacing').value = String(state.noteLetterSpacing || 0);
-      document.getElementById('labelNoteSpacingVal').textContent = skipVal > 0 ? `疏排·隔${skipVal}行（${state.noteLetterSpacing}%）` : '标准（0%）';
+      const kLines = noteLinesPerCell();
+      document.getElementById('rangeNoteSpacing').value = String(Math.min(100, Math.max(20, Number(state.noteLetterSpacing) || 100)));
+      document.getElementById('labelNoteSpacingVal').textContent = kLines > 1 ? `${Math.round(100 / kLines)}%行距 · 每格${kLines}行` : '标准（100%行距）';
       const c = getEffectiveColors();
       const isIndigo = state.paper === 'paper-indigo';
       const ruleDisplay = state.ruleColor || (state.gridRule === 'zhusi' ? (isIndigo ? '#e6c675' : '#b92b27') : (isIndigo ? '#e6c675' : '#1e1815'));
@@ -2182,7 +2198,7 @@
       const p = EDITION_PRESETS[presetKey];
       if (!p) return;
       Object.assign(state, { colsPerHalf: p.cols, rowsPerCol: p.rows, borderStyle: p.borderStyle, gridRule: p.gridRule, fishtail: p.fishtail, mouth: p.mouth, paper: p.paper, judou: p.judou, noteFlow: p.noteFlow, showEar: p.showEar, showProperLine: p.showProperLine, showSeal: p.showSeal });
-      Object.assign(state, { textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '', noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '', noteLetterSpacing: 0 });
+      Object.assign(state, { textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '', noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '', noteLetterSpacing: 100 });
       syncTypographyControls();
       if (p.font) {
         state.fontFamily = p.font; state.fontLabel = p.fontLabel || '自定义字体';
@@ -2255,7 +2271,7 @@
           if (proj.noteFontScale) state.noteFontScale = Number(proj.noteFontScale) || 100;
           if (proj.noteCharsPerRow) state.noteCharsPerRow = Math.min(4, Math.max(1, Number(proj.noteCharsPerRow) || 2));
           if (proj.noteFontFamily) state.noteFontFamily = proj.noteFontFamily;
-          if (proj.noteLetterSpacing !== undefined) state.noteLetterSpacing = Math.max(0, Math.min(100, Number(proj.noteLetterSpacing) || 0));
+          if (proj.noteLetterSpacing !== undefined) { const v = Number(proj.noteLetterSpacing); state.noteLetterSpacing = (v >= 20 && v <= 100) ? v : 100; }
           syncTypographyControls();
           document.getElementById('inputBookTitle').value = state.bookTitle;
           document.getElementById('inputBookAuthor').value = state.bookAuthor;
@@ -2392,8 +2408,8 @@
       });
       document.getElementById('rangeNoteSpacing').addEventListener('input', (e) => {
         state.noteLetterSpacing = Number(e.target.value);
-        const sk = noteSkipRows();
-        document.getElementById('labelNoteSpacingVal').textContent = sk > 0 ? `疏排·隔${sk}行（${state.noteLetterSpacing}%）` : '标准（0%）';
+        const kLines = noteLinesPerCell();
+        document.getElementById('labelNoteSpacingVal').textContent = kLines > 1 ? `${Math.round(100 / kLines)}%行距 · 每格${kLines}行` : '标准（100%行距）';
         renderCurrentLeaf();
       });
       document.getElementById('btnResetColors').addEventListener('click', () => {
@@ -2435,7 +2451,7 @@
         if (state.noteFontScale && state.noteFontScale !== 100) proj.noteFontScale = state.noteFontScale;
         if (state.noteCharsPerRow && state.noteCharsPerRow !== 2) proj.noteCharsPerRow = state.noteCharsPerRow;
         if (state.noteFontFamily) proj.noteFontFamily = state.noteFontFamily;
-        if (state.noteLetterSpacing) proj.noteLetterSpacing = state.noteLetterSpacing;
+        if (state.noteLetterSpacing && state.noteLetterSpacing < 100) proj.noteLetterSpacing = state.noteLetterSpacing;
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(proj, null, 2)], { type: 'application/json;charset=utf-8' })); a.download = `${state.bookTitle}.guji.json`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a); showToast('已导出 .guji.json 工程文件', '📦');
       });
