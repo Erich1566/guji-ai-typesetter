@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- 内置免费开源古籍字体：思源宋体简/繁、霞鹜文楷繁/屏显、Shippori明朝、志莽行书、马善政楷书 -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=LXGW+WenKai+TC:wght@400;700&family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Serif+TC:wght@400;600;700;900&family=Shippori+Mincho:wght@400;600;700;800&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Hina+Mincho:wght@400;700&family=Inter:wght@400;500;600;700&family=Kaisei+Tochu:wght@400;700&family=LXGW+WenKai+TC:wght@400;700&family=Liu+Jian+Mao+Cao&family=Long+Cang&family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Serif+TC:wght@400;600;700;900&family=Shippori+Mincho:wght@400;600;700;800&family=Shippori+Mincho+B1:wght@400;700;800&family=Yuji+Syuku&family=Zen+Old+Mincho:wght@400;700;900&family=Zhi+Mang+Xing&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-web/lxgwwenkaiscreen/result.css" rel="stylesheet">
   <style>
     :root {
@@ -409,6 +409,14 @@
                   <option value="'LXGW WenKai TC', 'LXGW WenKai Screen', serif">霞鹜文楷繁体 · 传承手写楷 (免费开源)</option>
                   <option value="'LXGW WenKai Screen', 'LXGW WenKai TC', serif">霞鹜文楷屏显版 · 温润写刻 (免费开源)</option>
                   <option value="'Shippori Mincho', 'Noto Serif TC', serif">Shippori 明朝 · 雕版铅字风 (免费开源)</option>
+                  <option value="'Shippori Mincho B1', 'Shippori Mincho', serif">Shippori 明朝B1 · 濃味雕版铅字 (免费开源)</option>
+                  <option value="'Zen Old Mincho', 'Noto Serif TC', serif">Zen 老明朝 · 古典印刷体 (免费开源)</option>
+                  <option value="'Hina Mincho', 'Noto Serif TC', serif">Hina 明朝 · 轻雅刻本 (免费开源)</option>
+                  <option value="'Kaisei Tochu', 'LXGW WenKai TC', serif">Kaisei Tochu · 楷韵明朝 (免费开源)</option>
+                  <option value="'ZCOOL XiaoWei', 'Noto Serif SC', serif">站酷小薇 · 宋刻雅韵 (免费开源)</option>
+                  <option value="'Yuji Syuku', 'Ma Shan Zheng', serif">Yuji Syuku · 毛笔楷写古钞 (免费开源)</option>
+                  <option value="'Long Cang', 'LXGW WenKai TC', cursive">龙藏体 · 手抄墨迹 (免费开源)</option>
+                  <option value="'Liu Jian Mao Cao', 'Zhi Mang Xing', cursive">流江毛草 · 狂草稿本 (免费开源)</option>
                   <option value="'Zhi Mang Xing', 'Noto Serif TC', cursive">志莽行书 · 手抄稿本风 (免费开源)</option>
                   <option value="'Ma Shan Zheng', 'Noto Serif TC', cursive">马善政毛笔楷 · 封面匾额风 (免费开源)</option>
                 </optgroup>
@@ -479,8 +487,10 @@
               <option value="siku_zhusi">钦定四库全书本（四周双边·朱丝栏）</option>
               <option value="ming_jiajing">明嘉靖壬子董氏刻本（四周单边·白口）</option>
               <option value="qing_langhuan">清光绪琅环阁藏板（四周双边·大黑口）</option>
-              <option value="indigo_gold">内府磁青纸泥金写本（磁青泥金·朱丝栏）</option>
-            </select>
+                <option value="indigo_gold">内府磁青纸泥金写本（磁青泥金·朱丝栏）</option>
+                <option value="manuscript_jingchao">明清精抄本（朱丝栏·楷书上板·无鱼尾）</option>
+                <option value="minguo_leadpress">民国铅印本（聚珍宋体·无界行密排）</option>
+              </select>
           </div>
 
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
@@ -601,10 +611,10 @@
 
             <div class="col-span-2 sm:col-span-3">
               <div class="flex justify-between text-[11px] text-stone-600 mb-0.5">
-                <label for="rangeNoteSpacing">小字字间距（负值为紧排）</label>
+                <label for="rangeNoteSpacing">小字上下字距（隔行疏排）</label>
                 <span id="labelNoteSpacingVal" class="font-semibold text-amber-900">标准（0%）</span>
               </div>
-              <input id="rangeNoteSpacing" type="range" min="-50" max="100" step="5" value="0" class="w-full accent-amber-800 cursor-pointer" />
+              <input id="rangeNoteSpacing" type="range" min="0" max="100" step="5" value="0" class="w-full accent-amber-800 cursor-pointer" />
             </div>
           </div>
 
@@ -1105,7 +1115,9 @@
       siku_zhusi: { name: '钦定四库全书本（朱丝栏）', cols: 8, rows: 20, borderStyle: 'all_double', gridRule: 'zhusi', fishtail: 'hollow_floral', mouth: 'thin_black', paper: 'paper-xuan', judou: 'vermilion_side', noteFlow: 'column_split', showEar: false, showProperLine: true, showSeal: true },
       ming_jiajing: { name: '明嘉靖壬子董氏刻本', cols: 10, rows: 19, borderStyle: 'all_single', gridRule: 'wusi', fishtail: 'single_solid', mouth: 'white', paper: 'paper-hemp', judou: 'ink_side', noteFlow: 'column_split', showEar: true, showProperLine: true, showSeal: true },
       qing_langhuan: { name: '清光绪琅环阁藏板', cols: 9, rows: 18, borderStyle: 'all_double', gridRule: 'wusi', fishtail: 'double_solid', mouth: 'thick_black', paper: 'paper-bamboo', judou: 'vermilion_side', noteFlow: 'column_split', showEar: true, showProperLine: true, showSeal: true },
-      indigo_gold: { name: '内府磁青纸泥金写本', cols: 8, rows: 16, borderStyle: 'all_double', gridRule: 'zhusi', fishtail: 'hollow_floral', mouth: 'thin_black', paper: 'paper-indigo', judou: 'vermilion_side', noteFlow: 'column_split', showEar: false, showProperLine: true, showSeal: false }
+      indigo_gold: { name: '内府磁青纸泥金写本', cols: 8, rows: 16, borderStyle: 'all_double', gridRule: 'zhusi', fishtail: 'hollow_floral', mouth: 'thin_black', paper: 'paper-indigo', judou: 'vermilion_side', noteFlow: 'column_split', showEar: false, showProperLine: true, showSeal: false },
+      manuscript_jingchao: { name: '明清精抄本（朱丝栏·楷书上板·无鱼尾）', cols: 8, rows: 16, borderStyle: 'all_single', gridRule: 'zhusi', fishtail: 'none', mouth: 'white', paper: 'paper-xuan', judou: 'ink_side', noteFlow: 'column_split', showEar: true, showProperLine: true, showSeal: true, font: "'LXGW WenKai TC', 'LXGW WenKai Screen', serif", fontLabel: '霞鹜文楷繁体' },
+      minguo_leadpress: { name: '民国铅印本（聚珍宋体·无界行密排）', cols: 12, rows: 24, borderStyle: 'all_single', gridRule: 'none', fishtail: 'none', mouth: 'white', paper: 'paper-white', judou: 'ink_side', noteFlow: 'column_split', showEar: false, showProperLine: false, showSeal: false, font: "'Noto Serif SC', serif", fontLabel: '思源宋体简体' }
     };
 
     const AI_PROVIDER_PRESETS = {
@@ -1372,6 +1384,8 @@
             }
             let ptr = 0;
             const notePerRow = Math.min(4, Math.max(1, Number(state.noteCharsPerRow) || 2));
+            const skipRows = noteSkipRows();
+            const rowConsume = 1 + skipRows;
             const makeDualCell = (items) => {
               const filled = [];
               for (let k = 0; k < notePerRow; k++) filled.push(items[k] || { char: '　', judou: '' });
@@ -1380,22 +1394,27 @@
               }
               return { type: 'dual', dualChars: filled.map((it) => ({ char: it.char, proper: it.proper, bookTitle: it.bookTitle, judou: it.judou })) };
             };
+            const pushNoteRow = (cell) => {
+              currentCol.cells.push(cell);
+              for (let s = 0; s < skipRows && currentCol.cells.length < rows; s++) currentCol.cells.push({ type: 'empty' });
+            };
             while (ptr < smallItems.length) {
               ensureCellSpace();
               const availInCol = rows - currentCol.cells.length;
-              const segCells = Math.min(availInCol, Math.ceil((smallItems.length - ptr) / notePerRow));
+              const segCells = Math.min(Math.floor(availInCol / rowConsume), Math.ceil((smallItems.length - ptr) / notePerRow));
+              if (segCells <= 0) { pushCurrentCol(true); continue; }
               if (state.noteFlow === 'column_split') {
                 const chunk = smallItems.slice(ptr, ptr + segCells * notePerRow);
                 const perSubCol = Math.ceil(chunk.length / notePerRow);
                 for (let r = 0; r < segCells; r++) {
                   const rowItems = [];
                   for (let k = 0; k < notePerRow; k++) rowItems.push(chunk[k * perSubCol + r] || { char: '　', judou: '' });
-                  currentCol.cells.push(makeDualCell(rowItems));
+                  pushNoteRow(makeDualCell(rowItems));
                 }
                 ptr += segCells * notePerRow;
               } else {
                 for (let r = 0; r < segCells; r++) {
-                  currentCol.cells.push(makeDualCell(smallItems.slice(ptr, ptr + notePerRow)));
+                  pushNoteRow(makeDualCell(smallItems.slice(ptr, ptr + notePerRow)));
                   ptr += notePerRow;
                 }
               }
@@ -1488,11 +1507,9 @@
       return { rows, cellFontPx, colWidthPx, cellHpx };
     }
 
-    // 双行小字每行 N 字的字间距散布系数（向列中心收拢/向外疏排，钳制在界行内避免溢出）
-    function noteSlotLayout(n, colW, charW) {
-      const spacing = Number(state.noteLetterSpacing) || 0;
-      const maxSpread = (colW / 2 - 1 - charW / 2) / (colW / 2 - colW / (2 * Math.max(2, n)));
-      return Math.max(0.25, Math.min(1 + spacing / 100, Math.max(0.25, maxSpread)));
+    // 双行小字上下字距：疏排强度 → 每个小字行在分页时跨越的网格行数（0=标准紧排，最大隔3行）
+    function noteSkipRows() {
+      return Math.min(3, Math.max(0, Math.floor((Number(state.noteLetterSpacing) || 0) / 25)));
     }
 
     function buildFishtailSvg(type, isBottom, isIndigo, fillOverride) {
@@ -1573,7 +1590,7 @@
         const borderLeftStyle = colIdx < colsArray.length - 1 && state.gridRule !== 'none' ? `border-left: 1px solid ${ruleColor};` : '';
         const meipiHtml = colObj.meipi ? `<div class="absolute -top-11 left-1/2 -translate-x-1/2 font-guji text-[10px] leading-tight tracking-tighter select-none" style="writing-mode: vertical-rl; max-height: 40px; overflow: hidden; color:${colors.meipi};" title="${colObj.meipi}">${colObj.meipi}</div>` : '';
         let cellsHtml = '';
-        colObj.cells.forEach((cell) => {
+        colObj.cells.forEach((cell, rowIdx) => {
           if (cell.type === 'empty') {
             cellsHtml += `<div class="w-full flex-1 flex items-center justify-center select-none">&nbsp;</div>`;
           } else if (cell.type === 'main') {
@@ -1590,13 +1607,12 @@
             const items = dualCellItems(cell);
             // 防溢出：小字字号上限 = 单元格高×0.78 与「列宽÷每行字数×0.82」取小
             const noteFontSizePx = Math.min(cellBox.cellFontPx * 0.56 * noteScaleRatio, cellBox.cellHpx * 0.78, (cellBox.colWidthPx / items.length) * 0.82);
-            const slotPct = (100 / items.length * noteSlotLayout(items.length, cellBox.colWidthPx, noteFontSizePx)).toFixed(2);
             const subsHtml = items.map((item) => {
               const iJudou = item.judou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${item.judou}</span>` : '';
               const iProper = state.showProperLine && item.proper ? `border-left: 1px solid ${properLineColor};` : '';
-              return `<div class="relative h-full flex items-center justify-center leading-none shrink-0" style="width:${slotPct}%; font-size:${noteFontSizePx.toFixed(2)}px; ${iProper}"><span>${item.char}</span>${iJudou}</div>`;
+              return `<div class="relative flex-1 h-full flex items-center justify-center leading-none" style="font-size:${noteFontSizePx.toFixed(2)}px; ${iProper}"><span>${item.char}</span>${iJudou}</div>`;
             }).join('');
-            cellsHtml += `<div class="relative w-full flex-1 flex flex-row-reverse items-center justify-center font-guji px-[1px]" style="font-weight:${fontWeight}; color:${colors.note}; ${noteFontCss}">${subsHtml}</div>`;
+            cellsHtml += `<div class="relative w-full flex-1 flex flex-row-reverse items-center justify-around font-guji px-[1px]" style="font-weight:${fontWeight}; color:${colors.note}; ${noteFontCss}">${subsHtml}</div>`;
           }
         });
         let sealHtml = '';
@@ -1824,10 +1840,8 @@
               const smallFont = Math.min(Math.max(8, Math.floor(cellH * 0.43 * fontScale * noteScaleRatio)), Math.max(7, Math.floor(colW / nItems.length * 0.82)));
               ctx.font = `${fontWeight} ${smallFont}px ${noteFontCss}`;
               ctx.fillStyle = noteColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-              const spread = noteSlotLayout(nItems.length, colW, smallFont);
               nItems.forEach((item, idx) => {
-                const baseX = colW * (1 - (idx + 0.5) / nItems.length);
-                ctx.fillText(item.char, colLeftX + colW / 2 + (baseX - colW / 2) * spread, cellCenterY);
+                ctx.fillText(item.char, colLeftX + colW * (1 - (idx + 0.5) / nItems.length), cellCenterY);
               });
               nItems.forEach((item, idx) => {
                 if (item.judou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 10px ${state.fontFamily}`; ctx.fillText(item.judou, colLeftX + colW * (1 - idx / nItems.length) - 4, cellTopY + cellH - 3); }
@@ -2151,9 +2165,9 @@
       document.getElementById('selectNoteFontScale').value = String(state.noteFontScale || 100);
       document.getElementById('selectNoteChars').value = String(state.noteCharsPerRow || 2);
       document.getElementById('selectNoteFontFamily').value = state.noteFontFamily || '';
-      const spacing = Number(state.noteLetterSpacing) || 0;
-      document.getElementById('rangeNoteSpacing').value = String(spacing);
-      document.getElementById('labelNoteSpacingVal').textContent = spacing > 0 ? `疏排 +${spacing}%` : spacing < 0 ? `紧排 ${spacing}%` : '标准（0%）';
+      const skipVal = noteSkipRows();
+      document.getElementById('rangeNoteSpacing').value = String(state.noteLetterSpacing || 0);
+      document.getElementById('labelNoteSpacingVal').textContent = skipVal > 0 ? `疏排·隔${skipVal}行（${state.noteLetterSpacing}%）` : '标准（0%）';
       const c = getEffectiveColors();
       const isIndigo = state.paper === 'paper-indigo';
       const ruleDisplay = state.ruleColor || (state.gridRule === 'zhusi' ? (isIndigo ? '#e6c675' : '#b92b27') : (isIndigo ? '#e6c675' : '#1e1815'));
@@ -2168,8 +2182,13 @@
       const p = EDITION_PRESETS[presetKey];
       if (!p) return;
       Object.assign(state, { colsPerHalf: p.cols, rowsPerCol: p.rows, borderStyle: p.borderStyle, gridRule: p.gridRule, fishtail: p.fishtail, mouth: p.mouth, paper: p.paper, judou: p.judou, noteFlow: p.noteFlow, showEar: p.showEar, showProperLine: p.showProperLine, showSeal: p.showSeal });
-      Object.assign(state, { textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '', noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '' });
+      Object.assign(state, { textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '', noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '', noteLetterSpacing: 0 });
       syncTypographyControls();
+      if (p.font) {
+        state.fontFamily = p.font; state.fontLabel = p.fontLabel || '自定义字体';
+        document.getElementById('selectFontFamily').value = p.font;
+        applyFontToDocument();
+      }
       document.getElementById('selectEditionPreset').value = presetKey;
       document.getElementById('rangeCols').value = p.cols; document.getElementById('rangeRows').value = p.rows;
       document.getElementById('selectBorderStyle').value = p.borderStyle; document.getElementById('selectGridRule').value = p.gridRule;
@@ -2236,7 +2255,7 @@
           if (proj.noteFontScale) state.noteFontScale = Number(proj.noteFontScale) || 100;
           if (proj.noteCharsPerRow) state.noteCharsPerRow = Math.min(4, Math.max(1, Number(proj.noteCharsPerRow) || 2));
           if (proj.noteFontFamily) state.noteFontFamily = proj.noteFontFamily;
-          if (proj.noteLetterSpacing !== undefined) state.noteLetterSpacing = Math.max(-50, Math.min(100, Number(proj.noteLetterSpacing) || 0));
+          if (proj.noteLetterSpacing !== undefined) state.noteLetterSpacing = Math.max(0, Math.min(100, Number(proj.noteLetterSpacing) || 0));
           syncTypographyControls();
           document.getElementById('inputBookTitle').value = state.bookTitle;
           document.getElementById('inputBookAuthor').value = state.bookAuthor;
@@ -2373,8 +2392,8 @@
       });
       document.getElementById('rangeNoteSpacing').addEventListener('input', (e) => {
         state.noteLetterSpacing = Number(e.target.value);
-        const s = state.noteLetterSpacing;
-        document.getElementById('labelNoteSpacingVal').textContent = s > 0 ? `疏排 +${s}%` : s < 0 ? `紧排 ${s}%` : '标准（0%）';
+        const sk = noteSkipRows();
+        document.getElementById('labelNoteSpacingVal').textContent = sk > 0 ? `疏排·隔${sk}行（${state.noteLetterSpacing}%）` : '标准（0%）';
         renderCurrentLeaf();
       });
       document.getElementById('btnResetColors').addEventListener('click', () => {
