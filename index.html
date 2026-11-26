@@ -662,8 +662,8 @@
             <label class="inline-flex items-center gap-1.5 cursor-pointer" title="半叶导出时在页底外侧显示页码（如现代影印线装书）">
               <input id="chkHalfPageNo" type="checkbox" checked class="accent-amber-800 rounded" /><span>半叶页码</span>
             </label>
-            <label class="inline-flex items-center gap-1.5 cursor-pointer" title="半叶导出时在页底居中显示「书名·卷名」">
-              <input id="chkHalfTitleVolume" type="checkbox" checked class="accent-amber-800 rounded" /><span>半叶书名卷名</span>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer" title="半叶导出时在页码前显示「书名·卷名」（如：書名·卷一 一一〇）">
+              <input id="chkHalfTitleVolume" type="checkbox" checked class="accent-amber-800 rounded" /><span>页码前显示书名卷名</span>
             </label>
           </div>
           <div class="pt-1.5 grid grid-cols-3 gap-2 text-[11px]" title="半叶导出页码样式（需勾选「半叶页码」）">
@@ -677,8 +677,8 @@
             <div>
               <label for="selectHalfPageNoPos" class="block text-stone-600 mb-0.5">页码位置</label>
               <select id="selectHalfPageNoPos" class="w-full bg-stone-50 border border-stone-300 rounded px-1.5 py-1 text-xs">
-                <option value="bottom" selected>页底外侧</option>
-                <option value="banxin">半叶版心内</option>
+                <option value="top">版框外侧上方（近版心）</option>
+                <option value="bottom" selected>版框外侧下方（近版心）</option>
               </select>
             </div>
             <div>
@@ -1871,7 +1871,7 @@
       const mode = modeOverride || 'spread';
       const isHalf = mode === 'right_half' || mode === 'left_half';
       const m = getCanvasMetrics();
-      const { cols, rows, colW, cellH, bodyH, banxinW, halfW, totalBodyW, padX, padTop, fullH } = m;
+      const { cols, rows, colW, cellH, bodyH, banxinW, halfW, totalBodyW, padX, padTop, padBottom, fullH } = m;
       const bodyW = isHalf ? halfW + banxinW / 2 : totalBodyW;
       const outW = padX * 2 + bodyW;
       const isIndigo = state.paper === 'paper-indigo';
@@ -1995,41 +1995,29 @@
         drawBanxin(mode === 'right_half' ? 'right' : 'left');
         if (mode === 'right_half') drawHalfLeaf(leaf.rightCols, padX + banxinW / 2, true);
         else drawHalfLeaf(leaf.leftCols, padX, false);
-        // 现代影印线装阅读辅助：半叶页码（页底外侧）与书名·卷名（页底居中），勾选后绘制
-        if (pageNo != null) {
-          if (state.halfPageNo) {
-            const isChinese = state.halfPageNoStyle !== 'arabic';
-            const vertical = state.halfPageNoFlow === 'vertical';
-            const inBanxin = state.halfPageNoPos === 'banxin';
-            const text = isChinese ? toChineseDigits(pageNo) : String(pageNo);
-            const chars = text.split('');
-            ctx.fillStyle = inkColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            const outerX = mode === 'right_half' ? outW - padX / 2 : padX / 2;
-            if (inBanxin) {
-              // 半叶版心内：版心半宽中线，纵排自下而上叠字，横排居中于地脚上方
-              const cx = mode === 'right_half' ? padX + banxinW / 4 : padX + halfW + banxinW / 4;
-              if (vertical) {
-                ctx.font = `600 13px ${state.fontFamily}`;
-                const yBase = padTop + bodyH - 16;
-                chars.forEach((ch, i) => ctx.fillText(ch, cx, yBase - (chars.length - 1 - i) * 15));
-              } else {
-                ctx.font = `600 12px ${state.fontFamily}`;
-                ctx.fillText(text, cx, padTop + bodyH - 12);
-              }
-            } else if (vertical) {
-              // 页底外侧竖排：外边距竖条内自上而下叠字
-              ctx.font = `600 12px ${state.fontFamily}`;
-              const y0 = padTop + bodyH + 7;
-              chars.forEach((ch, i) => ctx.fillText(ch, outerX, y0 + i * 15));
-            } else {
-              ctx.font = `600 15px ${state.fontFamily}`;
-              ctx.fillText(text, outerX, padTop + bodyH + 23);
-            }
-          }
-          if (state.halfTitleVolume) {
-            ctx.fillStyle = inkColor; ctx.font = `500 13px ${state.fontFamily}`;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(`${state.bookTitle} · ${leaf.volume || state.bookVolume}`, outW / 2, padTop + bodyH + 24);
+        // 现代影印线装阅读辅助：半叶页码绘制于版框外侧近版心一侧（上下可选），书名·卷名可勾选前置于页码
+        if (pageNo != null && state.halfPageNo) {
+          const isChinese = state.halfPageNoStyle !== 'arabic';
+          const vertical = state.halfPageNoFlow === 'vertical';
+          const atTop = state.halfPageNoPos === 'top';
+          const numText = isChinese ? toChineseDigits(pageNo) : String(pageNo);
+          const prefix = state.halfTitleVolume ? `${state.bookTitle}·${leaf.volume || state.bookVolume}` : '';
+          ctx.fillStyle = inkColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const outerX = mode === 'right_half' ? padX / 2 : outW - padX / 2;
+          if (vertical) {
+            // 竖排：版框外侧边条内自上而下叠字（书名卷名前置于页码之前）
+            ctx.font = `600 13px ${state.fontFamily}`;
+            const chars = (prefix + numText).split('');
+            const totalH = chars.length * 15;
+            let y0 = atTop ? 14 : fullH - 14 - totalH;
+            chars.forEach((ch, i) => ctx.fillText(ch, outerX, y0 + 7 + i * 15));
+          } else {
+            // 横排：上/下边距带内，近版心一侧对齐
+            ctx.font = `600 14px ${state.fontFamily}`;
+            ctx.textAlign = mode === 'right_half' ? 'left' : 'right';
+            const x = mode === 'right_half' ? padX : outW - padX;
+            const y = atTop ? padTop / 2 : padTop + bodyH + padBottom / 2;
+            ctx.fillText(prefix ? `${prefix}　${numText}` : numText, x, y);
           }
         }
         ctx.restore();
