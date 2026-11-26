@@ -14,7 +14,16 @@
   <!-- 内置免费开源古籍字体：思源宋体简/繁、霞鹜文楷繁/屏显、Shippori明朝、志莽行书、马善政楷书 -->
   <link href="https://fonts.googleapis.com/css2?family=Hina+Mincho:wght@400;700&family=Inter:wght@400;500;600;700&family=Kaisei+Tochu:wght@400;700&family=LXGW+WenKai+TC:wght@400;700&family=Liu+Jian+Mao+Cao&family=Long+Cang&family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Serif+TC:wght@400;600;700;900&family=Shippori+Mincho:wght@400;600;700;800&family=Shippori+Mincho+B1:wght@400;700;800&family=Yuji+Syuku&family=Zen+Old+Mincho:wght@400;700;900&family=Zhi+Mang+Xing&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-web/lxgwwenkaiscreen/result.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-gb-web@1.530.0/lxgwwenkaigb-regular/result.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@free-fonts/tw-kai@1.0.0/tw-kai.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@free-fonts/zhuque-fangsong@1.0.0/zhuque-fangsong.css" rel="stylesheet">
   <style>
+    /* 寒蝉正楷（书法楷体大字库，整包较大按需加载） */
+    @font-face {
+      font-family: 'ChillKai';
+      src: url('https://cdn.jsdelivr.net/npm/@fontpkg/chill-kai@2.0.1/ChillKai.woff2') format('woff2');
+      font-display: swap;
+    }
     :root {
       --guji-font: 'Noto Serif TC', 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
       --guji-font-scale: 1;
@@ -408,6 +417,7 @@
                   <option value="'Noto Serif SC', serif">思源宋体简体 · 现代精校风 (免费开源)</option>
                   <option value="'LXGW WenKai TC', 'LXGW WenKai Screen', serif">霞鹜文楷繁体 · 传承手写楷 (免费开源)</option>
                   <option value="'LXGW WenKai Screen', 'LXGW WenKai TC', serif">霞鹜文楷屏显版 · 温润写刻 (免费开源)</option>
+                  <option value="'LXGW WenKai GB', 'LXGW WenKai TC', serif">霞鹜文楷 GB · 简繁楷体字库全面 (免费开源)</option>
                   <option value="'Shippori Mincho', 'Noto Serif TC', serif">Shippori 明朝 · 雕版铅字风 (免费开源)</option>
                   <option value="'Shippori Mincho B1', 'Shippori Mincho', serif">Shippori 明朝B1 · 濃味雕版铅字 (免费开源)</option>
                   <option value="'Zen Old Mincho', 'Noto Serif TC', serif">Zen 老明朝 · 古典印刷体 (免费开源)</option>
@@ -415,6 +425,9 @@
                   <option value="'Kaisei Tochu', 'LXGW WenKai TC', serif">Kaisei Tochu · 楷韵明朝 (免费开源)</option>
                   <option value="'ZCOOL XiaoWei', 'Noto Serif SC', serif">站酷小薇 · 宋刻雅韵 (免费开源)</option>
                   <option value="'Yuji Syuku', 'Ma Shan Zheng', serif">Yuji Syuku · 毛笔楷写古钞 (免费开源)</option>
+                  <option value="'TW-Kai', 'LXGW WenKai GB', serif">全字库正楷 TW-Kai · 4.8万字异体字最全 (免费开源)</option>
+                  <option value="'ChillKai', 'LXGW WenKai GB', serif">寒蝉正楷 · 书法楷体大字库 (免费开源·约15MB)</option>
+                  <option value="'Zhuque Fangsong', 'Noto Serif SC', serif">朱雀仿宋 · 民国铅印仿宋 (免费开源)</option>
                   <option value="'Long Cang', 'LXGW WenKai TC', cursive">龙藏体 · 手抄墨迹 (免费开源)</option>
                   <option value="'Liu Jian Mao Cao', 'Zhi Mang Xing', cursive">流江毛草 · 狂草稿本 (免费开源)</option>
                   <option value="'Zhi Mang Xing', 'Noto Serif TC', cursive">志莽行书 · 手抄稿本风 (免费开源)</option>
@@ -489,7 +502,7 @@
               <option value="qing_langhuan">清光绪琅环阁藏板（四周双边·大黑口）</option>
                 <option value="indigo_gold">内府磁青纸泥金写本（磁青泥金·朱丝栏）</option>
                 <option value="manuscript_jingchao">明清精抄本（朱丝栏·楷书上板·无鱼尾）</option>
-                <option value="minguo_leadpress">民国铅印本（聚珍宋体·无界行密排）</option>
+                <option value="minguo_leadpress">民国铅印本（聚珍仿宋·无界行密排）</option>
               </select>
           </div>
 
@@ -1118,7 +1131,7 @@
       qing_langhuan: { name: '清光绪琅环阁藏板', cols: 9, rows: 18, borderStyle: 'all_double', gridRule: 'wusi', fishtail: 'double_solid', mouth: 'thick_black', paper: 'paper-bamboo', judou: 'vermilion_side', noteFlow: 'column_split', showEar: true, showProperLine: true, showSeal: true },
       indigo_gold: { name: '内府磁青纸泥金写本', cols: 8, rows: 16, borderStyle: 'all_double', gridRule: 'zhusi', fishtail: 'hollow_floral', mouth: 'thin_black', paper: 'paper-indigo', judou: 'vermilion_side', noteFlow: 'column_split', showEar: false, showProperLine: true, showSeal: false },
       manuscript_jingchao: { name: '明清精抄本（朱丝栏·楷书上板·无鱼尾）', cols: 8, rows: 16, borderStyle: 'all_single', gridRule: 'zhusi', fishtail: 'none', mouth: 'white', paper: 'paper-xuan', judou: 'ink_side', noteFlow: 'column_split', showEar: true, showProperLine: true, showSeal: true, font: "'LXGW WenKai TC', 'LXGW WenKai Screen', serif", fontLabel: '霞鹜文楷繁体' },
-      minguo_leadpress: { name: '民国铅印本（聚珍宋体·无界行密排）', cols: 12, rows: 24, borderStyle: 'all_single', gridRule: 'none', fishtail: 'none', mouth: 'white', paper: 'paper-white', judou: 'ink_side', noteFlow: 'column_split', showEar: false, showProperLine: false, showSeal: false, font: "'Noto Serif SC', serif", fontLabel: '思源宋体简体' }
+      minguo_leadpress: { name: '民国铅印本（聚珍仿宋·无界行密排）', cols: 12, rows: 24, borderStyle: 'all_single', gridRule: 'none', fishtail: 'none', mouth: 'white', paper: 'paper-white', judou: 'ink_side', noteFlow: 'column_split', showEar: false, showProperLine: false, showSeal: false, font: "'Zhuque Fangsong', 'Noto Serif SC', serif", fontLabel: '朱雀仿宋' }
     };
 
     const AI_PROVIDER_PRESETS = {
