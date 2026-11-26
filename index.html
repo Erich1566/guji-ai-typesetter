@@ -659,33 +659,56 @@
             <label class="inline-flex items-center gap-1.5 cursor-pointer">
               <input id="chkShowVolumeHeader" type="checkbox" checked class="accent-amber-800 rounded" /><span>卷端题名</span>
             </label>
-            <label class="inline-flex items-center gap-1.5 cursor-pointer" title="半叶导出时在页底外侧显示页码（如现代影印线装书）">
+            <label class="inline-flex items-center gap-1.5 cursor-pointer" title="半叶导出与半叶视图：版框外边条内的页码阅读辅助">
               <input id="chkHalfPageNo" type="checkbox" checked class="accent-amber-800 rounded" /><span>半叶页码</span>
             </label>
-            <label class="inline-flex items-center gap-1.5 cursor-pointer" title="半叶导出时在页码前显示「书名·卷名」（如：書名·卷一 一一〇）">
-              <input id="chkHalfTitleVolume" type="checkbox" checked class="accent-amber-800 rounded" /><span>页码前显示书名卷名</span>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer" title="书名·卷名可前置于页码，或独立绘制于左/右版框外侧">
+              <input id="chkHalfTitleVolume" type="checkbox" checked class="accent-amber-800 rounded" /><span>半叶书名卷名</span>
             </label>
           </div>
-          <div class="pt-1.5 grid grid-cols-3 gap-2 text-[11px]" title="半叶导出页码样式（需勾选「半叶页码」）">
-            <div>
-              <label for="selectHalfPageNoStyle" class="block text-stone-600 mb-0.5">页码数字</label>
-              <select id="selectHalfPageNoStyle" class="w-full bg-stone-50 border border-stone-300 rounded px-1.5 py-1 text-xs">
-                <option value="chinese" selected>中文数字（一一〇）</option>
-                <option value="arabic">阿拉伯数字（110）</option>
+          <div class="pt-1.5 space-y-1 text-[11px]" title="半叶导出与半叶视图的阅读辅助（位于版框外边条，不与正文重叠）">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-stone-600 font-semibold w-16 shrink-0">页码</span>
+              <span class="text-stone-500">数字</span>
+              <select id="selectHalfPageNoStyle" class="bg-stone-50 border border-stone-300 rounded px-1 py-0.5">
+                <option value="chinese" selected>中文（一一〇）</option>
+                <option value="arabic">阿拉伯（110）</option>
+              </select>
+              <span class="text-stone-500">边框侧</span>
+              <select id="selectHalfPageNoSide" class="bg-stone-50 border border-stone-300 rounded px-1 py-0.5">
+                <option value="left" selected>左外侧</option>
+                <option value="right">右外侧</option>
+              </select>
+              <span class="text-stone-500">纵向</span>
+              <select id="selectHalfPageNoVAlign" class="bg-stone-50 border border-stone-300 rounded px-1 py-0.5">
+                <option value="top">上</option>
+                <option value="middle">中</option>
+                <option value="bottom" selected>下</option>
+              </select>
+              <span class="text-stone-500">排布</span>
+              <select id="selectHalfPageNoFlow" class="bg-stone-50 border border-stone-300 rounded px-1 py-0.5">
+                <option value="vertical" selected>竖排</option>
+                <option value="horizontal">横排</option>
               </select>
             </div>
-            <div>
-              <label for="selectHalfPageNoPos" class="block text-stone-600 mb-0.5">页码位置（版框外侧）</label>
-              <select id="selectHalfPageNoPos" class="w-full bg-stone-50 border border-stone-300 rounded px-1.5 py-1 text-xs">
-                <option value="left" selected>左边框外侧（近版心）</option>
-                <option value="right">右边框外侧</option>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-stone-600 font-semibold w-16 shrink-0">书名卷名</span>
+              <span class="text-stone-500">位置</span>
+              <select id="selectHalfTitleSide" class="bg-stone-50 border border-stone-300 rounded px-1 py-0.5">
+                <option value="before" selected>页码前</option>
+                <option value="left">左外侧</option>
+                <option value="right">右外侧</option>
               </select>
-            </div>
-            <div>
-              <label for="selectHalfPageNoFlow" class="block text-stone-600 mb-0.5">页码排布</label>
-              <select id="selectHalfPageNoFlow" class="w-full bg-stone-50 border border-stone-300 rounded px-1.5 py-1 text-xs">
-                <option value="horizontal" selected>横排</option>
-                <option value="vertical">竖排</option>
+              <span class="text-stone-500">纵向</span>
+              <select id="selectHalfTitleVAlign" class="bg-stone-50 border border-stone-300 rounded px-1 py-0.5">
+                <option value="top">上</option>
+                <option value="middle">中</option>
+                <option value="bottom" selected>下</option>
+              </select>
+              <span class="text-stone-500">排布</span>
+              <select id="selectHalfTitleFlow" class="bg-stone-50 border border-stone-300 rounded px-1 py-0.5">
+                <option value="vertical" selected>竖排</option>
+                <option value="horizontal">横排</option>
               </select>
             </div>
           </div>
@@ -1256,7 +1279,8 @@
       textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '',
       noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '', noteLetterSpacing: 100,
       halfPageNo: true, halfTitleVolume: true,
-      halfPageNoStyle: 'chinese', halfPageNoPos: 'left', halfPageNoFlow: 'horizontal',
+      halfPageNoStyle: 'chinese', halfPageNoSide: 'left', halfPageNoVAlign: 'bottom', halfPageNoFlow: 'vertical',
+      halfTitleSide: 'before', halfTitleVAlign: 'bottom', halfTitleFlow: 'vertical',
       showEar: true,
       showProperLine: true,
       showSeal: true,
@@ -1749,23 +1773,36 @@
       const rightEarHtml = state.showEar && earText && !noFrame && mode !== 'left_half' ? `<div class="absolute -right-[26px] top-6 w-[26px] py-2 border-2 border-l-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl; color:${colors.ear};">${earText.slice(0, 4)}</div>` : '';
       const leftEarHtml = state.showEar && earText && mode === 'left_half' && !noFrame ? `<div class="absolute -left-[26px] top-6 w-[26px] py-2 border-2 border-r-0 flex items-center justify-center font-guji text-[11px] font-bold tracking-tighter ${state.paper}" style="border-color:${frameColor}; writing-mode: vertical-rl; color:${colors.ear};">${earText.slice(0, 4)}</div>` : '';
 
-      // 半叶视图与导出一致：版心对半显示 + 页码/书名卷名阅读辅助（页码位置、数字类型、横竖排与导出共用同一配置）
+      // 半叶视图与导出一致：版心对半显示 + 页码/书名卷名阅读辅助（各自独立配置，版框外边条内不与正文重叠）
       const isHalfMode = mode === 'right_half' || mode === 'left_half';
-      let halfAidHtml = '';
-      if (isHalfMode && state.halfPageNo) {
-        const isChinese = state.halfPageNoStyle !== 'arabic';
-        const vertical = state.halfPageNoFlow === 'vertical';
-        const posSide = state.halfPageNoPos === 'right' ? 'right' : 'left';
-        const pageNo = (leaf.leafNumber - 1) * 2 + (mode === 'right_half' ? 1 : 2);
-        const numText = isChinese ? toChineseDigits(pageNo) : String(pageNo);
-        const prefix = state.halfTitleVolume ? `${state.bookTitle}·${leaf.volume || state.bookVolume}` : '';
-        if (vertical) {
-          const sideCss = posSide === 'left' ? 'left:2px;' : 'right:2px;';
-          halfAidHtml = `<div style="position:absolute;${sideCss}top:50%;transform:translateY(-50%);width:28px;max-height:540px;overflow:hidden;display:flex;justify-content:center;writing-mode:vertical-rl;color:${colors.ink};font-family:var(--guji-font);font-size:13px;font-weight:600;line-height:15px;user-select:none;">${prefix}${numText}</div>`;
-        } else {
-          const sideCss = posSide === 'left' ? 'left:10px;text-align:left;' : 'right:10px;text-align:right;';
-          halfAidHtml = `<div style="position:absolute;${sideCss}bottom:6px;color:${colors.ink};font-family:var(--guji-font);font-size:14px;font-weight:600;user-select:none;">${prefix ? prefix + '　' : ''}${numText}</div>`;
+      const halfAidDiv = (text, side, valign, flow, fontSize) => {
+        if (!text) return '';
+        const stripCss = side === 'left' ? 'left:2px;' : 'right:2px;';
+        if (flow === 'vertical') {
+          const vCss = valign === 'top' ? 'top:8px;' : valign === 'middle' ? 'top:50%;transform:translateY(-50%);' : 'bottom:8px;';
+          return `<div style="position:absolute;${stripCss}${vCss}width:26px;max-height:${Math.round(leafBodyHeightPx)}px;overflow:hidden;display:flex;justify-content:center;writing-mode:vertical-rl;color:${colors.ink};font-family:var(--guji-font);font-size:${fontSize}px;font-weight:600;line-height:${fontSize + 2}px;user-select:none;">${text}</div>`;
         }
+        const alignCss = side === 'left' ? 'left:10px;text-align:left;' : 'right:10px;text-align:right;';
+        const vCss = valign === 'top' ? 'top:12px;' : 'bottom:12px;';
+        return `<div style="position:absolute;${alignCss}${vCss}color:${colors.ink};font-family:var(--guji-font);font-size:${fontSize + 1}px;font-weight:600;user-select:none;">${text}</div>`;
+      };
+      let halfAidHtml = '';
+      if (isHalfMode) {
+        const aidParts = [];
+        const halfPageNo = (leaf.leafNumber - 1) * 2 + (mode === 'right_half' ? 1 : 2);
+        const halfNumText = state.halfPageNoStyle === 'arabic' ? String(halfPageNo) : toChineseDigits(halfPageNo);
+        const halfTvText = `${state.bookTitle}·${leaf.volume || state.bookVolume}`;
+        if (state.halfTitleVolume && state.halfTitleSide === 'before') {
+          aidParts.push({ text: halfTvText + halfNumText, side: state.halfPageNoSide, valign: state.halfPageNoVAlign, flow: state.halfPageNoFlow, fs: 13 });
+        } else {
+          if (state.halfPageNo) aidParts.push({ text: halfNumText, side: state.halfPageNoSide, valign: state.halfPageNoVAlign, flow: state.halfPageNoFlow, fs: 13 });
+          if (state.halfTitleVolume) {
+            let tvSide = state.halfTitleSide === 'right' ? 'right' : 'left';
+            if (state.halfPageNo && tvSide === state.halfPageNoSide) tvSide = tvSide === 'left' ? 'right' : 'left';
+            aidParts.push({ text: halfTvText, side: tvSide, valign: state.halfTitleVAlign, flow: state.halfTitleFlow, fs: 12 });
+          }
+        }
+        halfAidHtml = aidParts.map((p) => halfAidDiv(p.text, p.side, p.valign, p.flow, p.fs)).join('');
       }
       const showRight = mode === 'spread' || mode === 'right_half' || mode === 'all_leaves';
       const showLeft = mode === 'spread' || mode === 'left_half' || mode === 'all_leaves';
@@ -2014,28 +2051,40 @@
         drawBanxin(mode === 'right_half' ? 'right' : 'left');
         if (mode === 'right_half') drawHalfLeaf(leaf.rightCols, padX + banxinW / 2, true);
         else drawHalfLeaf(leaf.leftCols, padX, false);
-        // 现代影印线装阅读辅助：半叶页码绘制于版框左/右侧外边条（数字类型与横竖排可配），书名·卷名可勾选前置于页码
-        if (pageNo != null && state.halfPageNo) {
-          const isChinese = state.halfPageNoStyle !== 'arabic';
-          const vertical = state.halfPageNoFlow === 'vertical';
-          const posSide = state.halfPageNoPos === 'right' ? 'right' : 'left';
-          const numText = isChinese ? toChineseDigits(pageNo) : String(pageNo);
-          const prefix = state.halfTitleVolume ? `${state.bookTitle}·${leaf.volume || state.bookVolume}` : '';
+        // 半叶阅读辅助（版框外边条内，不与正文重叠）：页码与书名卷名分别可配
+        const drawHalfAid = (text, side, valign, flow, fontSize) => {
+          if (!text) return;
+          const chars = text.split('');
           ctx.fillStyle = inkColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          const stripX = posSide === 'left' ? padX / 2 : outW - padX / 2;
-          if (vertical) {
-            // 竖排：外边条内沿版框纵向居中叠字（书名卷名前置于页码）
-            ctx.font = `600 13px ${state.fontFamily}`;
-            const chars = (prefix + numText).split('');
-            const totalH = chars.length * 15;
-            const y0 = padTop + Math.max(8, (bodyH - totalH) / 2);
-            chars.forEach((ch, i) => ctx.fillText(ch, stripX, y0 + 7 + i * 15));
+          const stripX = side === 'left' ? padX / 2 : outW - padX / 2;
+          if (flow === 'vertical') {
+            ctx.font = `600 ${fontSize}px ${state.fontFamily}`;
+            const step = fontSize + 2;
+            const totalH = chars.length * step;
+            let y0;
+            if (valign === 'top') y0 = padTop + 6;
+            else if (valign === 'middle') y0 = padTop + Math.max(8, (bodyH - totalH) / 2);
+            else y0 = padTop + bodyH - 6 - totalH;
+            chars.forEach((ch, i) => ctx.fillText(ch, stripX, y0 + step / 2 + i * step));
           } else {
-            // 横排：地脚带内按所选侧对齐
-            ctx.font = `600 14px ${state.fontFamily}`;
-            ctx.textAlign = posSide === 'left' ? 'left' : 'right';
-            const x = posSide === 'left' ? 10 : outW - 10;
-            ctx.fillText(prefix ? `${prefix}　${numText}` : numText, x, padTop + bodyH + padBottom / 2);
+            ctx.font = `600 ${fontSize + 1}px ${state.fontFamily}`;
+            ctx.textAlign = side === 'left' ? 'left' : 'right';
+            const x = side === 'left' ? 10 : outW - 10;
+            const y = valign === 'top' ? padTop / 2 : padTop + bodyH + padBottom / 2;
+            ctx.fillText(text, x, y);
+          }
+        };
+        const halfNumText = state.halfPageNoStyle === 'arabic' ? String(pageNo) : toChineseDigits(pageNo);
+        const halfTvText = `${state.bookTitle}·${leaf.volume || state.bookVolume}`;
+        if (state.halfTitleVolume && state.halfTitleSide === 'before') {
+          // 书名·卷名前置于页码：与页码同列（竖排）或同排（横排）
+          drawHalfAid(halfTvText + halfNumText, state.halfPageNoSide, state.halfPageNoVAlign, state.halfPageNoFlow, 13);
+        } else {
+          if (state.halfPageNo) drawHalfAid(halfNumText, state.halfPageNoSide, state.halfPageNoVAlign, state.halfPageNoFlow, 13);
+          if (state.halfTitleVolume) {
+            let tvSide = state.halfTitleSide === 'right' ? 'right' : 'left';
+            if (state.halfPageNo && tvSide === state.halfPageNoSide) tvSide = tvSide === 'left' ? 'right' : 'left'; // 同侧自动错开
+            drawHalfAid(halfTvText, tvSide, state.halfTitleVAlign, state.halfTitleFlow, 12);
           }
         }
         ctx.restore();
@@ -2590,7 +2639,7 @@
       [['chkShowEar', 'showEar'], ['chkShowProperLine', 'showProperLine'], ['chkShowSeal', 'showSeal'], ['chkShowVolumeHeader', 'showVolumeHeader'], ['chkHalfPageNo', 'halfPageNo'], ['chkHalfTitleVolume', 'halfTitleVolume']].forEach(([id, key]) => {
         document.getElementById(id).addEventListener('change', (e) => { state[key] = e.target.checked; renderCurrentLeaf(); });
       });
-      [['selectHalfPageNoStyle', 'halfPageNoStyle'], ['selectHalfPageNoPos', 'halfPageNoPos'], ['selectHalfPageNoFlow', 'halfPageNoFlow']].forEach(([id, key]) => {
+      [['selectHalfPageNoStyle', 'halfPageNoStyle'], ['selectHalfPageNoSide', 'halfPageNoSide'], ['selectHalfPageNoVAlign', 'halfPageNoVAlign'], ['selectHalfPageNoFlow', 'halfPageNoFlow'], ['selectHalfTitleSide', 'halfTitleSide'], ['selectHalfTitleVAlign', 'halfTitleVAlign'], ['selectHalfTitleFlow', 'halfTitleFlow']].forEach(([id, key]) => {
         document.getElementById(id).addEventListener('change', (e) => { state[key] = e.target.value; renderCurrentLeaf(); });
       });
 
