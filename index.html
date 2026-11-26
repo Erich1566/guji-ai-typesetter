@@ -1775,34 +1775,42 @@
 
       // 半叶视图与导出一致：版心对半显示 + 页码/书名卷名阅读辅助（各自独立配置，版框外边条内不与正文重叠）
       const isHalfMode = mode === 'right_half' || mode === 'left_half';
-      const halfAidDiv = (text, side, valign, flow, fontSize) => {
-        if (!text) return '';
-        const stripCss = side === 'left' ? 'left:2px;' : 'right:2px;';
+      const halfAidDiv = (prefixText, numText, side, valign, flow, fontSize) => {
+        if (!prefixText && !numText) return '';
+        const hasPrefix = !!prefixText;
+        const nChars = numText ? numText.split('') : [];
+        const pChars = hasPrefix ? prefixText.split('') : [];
+        const cell = fontSize + 2;
+        const gap = hasPrefix && flow === 'vertical' ? fontSize : 0;
+        const stripCss = side === 'left' ? 'left:5px;' : 'right:5px;';
         if (flow === 'vertical') {
-          const vCss = valign === 'top' ? 'top:8px;' : valign === 'middle' ? 'top:50%;transform:translateY(-50%);' : 'bottom:8px;';
-          return `<div style="position:absolute;${stripCss}${vCss}width:26px;max-height:${Math.round(leafBodyHeightPx)}px;overflow:hidden;display:flex;justify-content:center;writing-mode:vertical-rl;color:${colors.ink};font-family:var(--guji-font);font-size:${fontSize}px;font-weight:600;line-height:${fontSize + 2}px;user-select:none;">${text}</div>`;
+          const vCss = valign === 'top' ? 'top:44px;' : valign === 'middle' ? 'top:50%;transform:translateY(-50%);' : 'bottom:8px;';
+          const cellDivs = [...pChars.map((c) => ({ t: c })), { spacer: true }, ...nChars.map((c) => ({ t: c }))].map((o) => `<div style="width:${cell}px;height:${cell}px;line-height:${cell}px;text-align:center;color:${colors.ink};font-family:var(--guji-font);font-size:${fontSize}px;font-weight:600;">${o.spacer ? '' : o.t}</div>`).join('');
+          return `<div style="position:absolute;${stripCss}${vCss}">${gap ? `<div style="height:${gap}px;"></div>` : ''}${cellDivs}</div>`;
         }
         const alignCss = side === 'left' ? 'left:10px;text-align:left;' : 'right:10px;text-align:right;';
         const vCss = valign === 'top' ? 'top:12px;' : 'bottom:12px;';
-        return `<div style="position:absolute;${alignCss}${vCss}color:${colors.ink};font-family:var(--guji-font);font-size:${fontSize + 1}px;font-weight:600;user-select:none;">${text}</div>`;
+        return `<div style="position:absolute;${alignCss}${vCss}color:${colors.ink};font-family:var(--guji-font);font-size:${fontSize + 1}px;font-weight:600;user-select:none;">${hasPrefix ? prefixText + '　' : ''}${numText}</div>`;
       };
       let halfAidHtml = '';
       if (isHalfMode) {
         const aidParts = [];
         const halfPageNo = (leaf.leafNumber - 1) * 2 + (mode === 'right_half' ? 1 : 2);
-        const halfNumText = state.halfPageNoStyle === 'arabic' ? String(halfPageNo) : toChineseDigits(halfPageNo);
+        const padCh = state.halfPageNoStyle === 'arabic' ? '0' : '〇';
+        const rawNum = state.halfPageNoStyle === 'arabic' ? String(halfPageNo) : toChineseDigits(halfPageNo);
+        const halfNumText = rawNum.length >= 2 ? rawNum : padCh.repeat(2 - rawNum.length) + rawNum;
         const halfTvText = `${state.bookTitle}·${leaf.volume || state.bookVolume}`;
         if (state.halfTitleVolume && state.halfTitleSide === 'before') {
-          aidParts.push({ text: halfTvText + halfNumText, side: state.halfPageNoSide, valign: state.halfPageNoVAlign, flow: state.halfPageNoFlow, fs: 13 });
+          aidParts.push({ prefix: halfTvText, num: halfNumText, side: state.halfPageNoSide, valign: state.halfPageNoVAlign, flow: state.halfPageNoFlow, fs: 13 });
         } else {
-          if (state.halfPageNo) aidParts.push({ text: halfNumText, side: state.halfPageNoSide, valign: state.halfPageNoVAlign, flow: state.halfPageNoFlow, fs: 13 });
+          if (state.halfPageNo) aidParts.push({ prefix: '', num: halfNumText, side: state.halfPageNoSide, valign: state.halfPageNoVAlign, flow: state.halfPageNoFlow, fs: 13 });
           if (state.halfTitleVolume) {
             let tvSide = state.halfTitleSide === 'right' ? 'right' : 'left';
             if (state.halfPageNo && tvSide === state.halfPageNoSide) tvSide = tvSide === 'left' ? 'right' : 'left';
-            aidParts.push({ text: halfTvText, side: tvSide, valign: state.halfTitleVAlign, flow: state.halfTitleFlow, fs: 12 });
+            aidParts.push({ prefix: halfTvText, num: '', side: tvSide, valign: state.halfTitleVAlign, flow: state.halfTitleFlow, fs: 12 });
           }
         }
-        halfAidHtml = aidParts.map((p) => halfAidDiv(p.text, p.side, p.valign, p.flow, p.fs)).join('');
+        halfAidHtml = aidParts.map((p) => halfAidDiv(p.prefix, p.num, p.side, p.valign, p.flow, p.fs)).join('');
       }
       const showRight = mode === 'spread' || mode === 'right_half' || mode === 'all_leaves';
       const showLeft = mode === 'spread' || mode === 'left_half' || mode === 'all_leaves';
@@ -2051,40 +2059,49 @@
         drawBanxin(mode === 'right_half' ? 'right' : 'left');
         if (mode === 'right_half') drawHalfLeaf(leaf.rightCols, padX + banxinW / 2, true);
         else drawHalfLeaf(leaf.leftCols, padX, false);
-        // 半叶阅读辅助（版框外边条内，不与正文重叠）：页码与书名卷名分别可配
-        const drawHalfAid = (text, side, valign, flow, fontSize) => {
-          if (!text) return;
-          const chars = text.split('');
+        // 半叶阅读辅助：绘制于版框外侧边条（订口/书口侧竖条或地脚带），严格在粗框之外不与正文重叠
+        // prefix=书名·卷名（前置于页码），num=页码；竖排时书名与页码之间留字距
+        const drawHalfAid = (prefixText, numText, side, valign, flow, fontSize) => {
+          if (!prefixText && !numText) return;
+          const hasPrefix = !!prefixText;
+          const nChars = numText ? numText.split('') : [];
+          const pChars = hasPrefix ? prefixText.split('') : [];
           ctx.fillStyle = inkColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           const stripX = side === 'left' ? padX / 2 : outW - padX / 2;
           if (flow === 'vertical') {
             ctx.font = `600 ${fontSize}px ${state.fontFamily}`;
             const step = fontSize + 2;
-            const totalH = chars.length * step;
+            const gap = hasPrefix ? fontSize : 0;
+            const totalH = (pChars.length + nChars.length) * step + gap;
             let y0;
             if (valign === 'top') y0 = padTop + 6;
             else if (valign === 'middle') y0 = padTop + Math.max(8, (bodyH - totalH) / 2);
             else y0 = padTop + bodyH - 6 - totalH;
-            chars.forEach((ch, i) => ctx.fillText(ch, stripX, y0 + step / 2 + i * step));
+            let yy = y0 + step / 2;
+            pChars.forEach((ch) => { ctx.fillText(ch, stripX, yy); yy += step; });
+            yy += gap;
+            nChars.forEach((ch) => { ctx.fillText(ch, stripX, yy); yy += step; });
           } else {
             ctx.font = `600 ${fontSize + 1}px ${state.fontFamily}`;
             ctx.textAlign = side === 'left' ? 'left' : 'right';
             const x = side === 'left' ? 10 : outW - 10;
             const y = valign === 'top' ? padTop / 2 : padTop + bodyH + padBottom / 2;
-            ctx.fillText(text, x, y);
+            ctx.fillText(hasPrefix ? `${prefixText}　${numText}` : numText, x, y);
           }
         };
-        const halfNumText = state.halfPageNoStyle === 'arabic' ? String(pageNo) : toChineseDigits(pageNo);
+        const padCh = state.halfPageNoStyle === 'arabic' ? '0' : '〇';
+        const rawNum = state.halfPageNoStyle === 'arabic' ? String(pageNo) : toChineseDigits(pageNo);
+        const halfNumText = rawNum.length >= 2 ? rawNum : padCh.repeat(2 - rawNum.length) + rawNum;
         const halfTvText = `${state.bookTitle}·${leaf.volume || state.bookVolume}`;
         if (state.halfTitleVolume && state.halfTitleSide === 'before') {
           // 书名·卷名前置于页码：与页码同列（竖排）或同排（横排）
-          drawHalfAid(halfTvText + halfNumText, state.halfPageNoSide, state.halfPageNoVAlign, state.halfPageNoFlow, 13);
+          drawHalfAid(halfTvText, halfNumText, state.halfPageNoSide, state.halfPageNoVAlign, state.halfPageNoFlow, 13);
         } else {
-          if (state.halfPageNo) drawHalfAid(halfNumText, state.halfPageNoSide, state.halfPageNoVAlign, state.halfPageNoFlow, 13);
+          if (state.halfPageNo) drawHalfAid('', halfNumText, state.halfPageNoSide, state.halfPageNoVAlign, state.halfPageNoFlow, 13);
           if (state.halfTitleVolume) {
             let tvSide = state.halfTitleSide === 'right' ? 'right' : 'left';
             if (state.halfPageNo && tvSide === state.halfPageNoSide) tvSide = tvSide === 'left' ? 'right' : 'left'; // 同侧自动错开
-            drawHalfAid(halfTvText, tvSide, state.halfTitleVAlign, state.halfTitleFlow, 12);
+            drawHalfAid(halfTvText, '', tvSide, state.halfTitleVAlign, state.halfTitleFlow, 12);
           }
         }
         ctx.restore();
