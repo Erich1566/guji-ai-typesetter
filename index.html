@@ -1820,10 +1820,10 @@
         <div class="${state.paper} rounded-[2px] shadow-2xl px-7 sm:px-9 pt-12 pb-7 relative transition-all print-page-break">
           <div class="no-print absolute top-2.5 left-8 right-8 flex justify-between text-[10px] opacity-45 font-guji pointer-events-none"><span>左半葉（後半葉）</span><span>天頭（書眉）· 全書第${toChineseNum(leaf.leafNumber)}葉</span><span>右半葉（前半葉）</span></div>
           <div class="relative p-[3px]" style="border-top:${outerTopBottom} solid ${frameColor}; border-bottom:${outerTopBottom} solid ${frameColor}; border-left:${outerLeftRight} solid ${frameColor}; border-right:${outerLeftRight} solid ${frameColor};">
-            ${rightEarHtml}${leftEarHtml}${halfAidHtml}
+            ${rightEarHtml}${leftEarHtml}${halfAidHtml}${isHalfMode ? `<div style="position:absolute;${mode === 'right_half' ? 'left:2px;' : 'right:2px;'}top:48px;height:${leafBodyHeightPx}px;width:22px;overflow:hidden;display:flex;${mode === 'right_half' ? 'justify-content:flex-end;' : 'justify-content:flex-start;'}">${banxinHtml}</div>` : ''}
             <div class="flex flex-row-reverse items-stretch" style="height:${leafBodyHeightPx}px; font-size:${cellFontPx}px; ${innerBorderCss}">
               ${showRight ? `<div class="flex flex-row-reverse h-full" style="width:${halfWidth}px;">${renderHalfLeafColsHtml(leaf.rightCols, true, leaf)}</div>` : ''}
-              ${isHalfMode ? `<div style="width:22px;flex-shrink:0;overflow:hidden;display:flex;${mode === 'right_half' ? 'justify-content:flex-end;' : 'justify-content:flex-start;'}">${banxinHtml}</div>` : banxinHtml}
+              ${isHalfMode ? '' : banxinHtml}
               ${showLeft ? `<div class="flex flex-row-reverse h-full" style="width:${halfWidth}px;">${renderHalfLeafColsHtml(leaf.leftCols, false, leaf)}</div>` : ''}
             </div>
           </div>
@@ -1954,9 +1954,13 @@
       const noteFontCss = state.noteFontFamily || state.fontFamily;
       const noFrame = state.borderStyle === 'none';
       if (!noFrame) {
+        // 半叶页：版框仅包住本半叶的文列（版心半位于框外订口侧，不入框）
+        const frameX = isHalf && mode === 'right_half' ? padX + halfBanxinW - 5 : padX - 5;
+        const frameW = isHalf ? halfW + 10 : totalBodyW + 10;
         ctx.strokeStyle = colors.frame; ctx.lineWidth = state.borderStyle === 'all_single' ? 2 : 4.5;
-        ctx.strokeRect(padX - 5, padTop - 5, bodyW + 10, bodyH + 10);
-        ctx.lineWidth = 1.4; ctx.strokeRect(padX, padTop, bodyW, bodyH);
+        ctx.strokeRect(frameX, padTop - 5, frameW, bodyH + 10);
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(isHalf && mode === 'right_half' ? padX + halfBanxinW : padX, padTop, isHalf ? halfW : totalBodyW, bodyH);
       }
 
       const earText = leaf.earTitle || state.earTitle;
@@ -2034,7 +2038,8 @@
       const drawBanxin = (clipHalf) => {
         ctx.save();
         if (clipHalf === 'right') {
-          ctx.translate(-(halfW + banxinW / 2), 0);
+          // 版心右半整体移到版框外侧（订口侧），与框线留 6px 间距
+          ctx.translate(-(halfW + halfBanxinW + 11), 0);
           ctx.beginPath(); ctx.rect(bx + banxinW / 2, padTop - 6, banxinW / 2, bodyH + 12); ctx.clip();
         } else if (clipHalf === 'left') {
           ctx.beginPath(); ctx.rect(bx, padTop - 6, banxinW / 2, bodyH + 12); ctx.clip();
@@ -2067,7 +2072,10 @@
           const nChars = numText ? numText.split('') : [];
           const pChars = hasPrefix ? prefixText.split('') : [];
           ctx.fillStyle = inkColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          const stripX = side === 'left' ? padX / 2 : outW - padX / 2;
+          // 页码辅助列：版框外边条竖条内（避开版心框与书耳），纵向锚定可选
+          const stripX = mode === 'right_half'
+            ? (side === 'left' ? 26 : outW - 15)
+            : (side === 'left' ? 13 : outW - 30);
           if (flow === 'vertical') {
             ctx.font = `600 ${fontSize}px ${state.fontFamily}`;
             const step = fontSize + 2;
