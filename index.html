@@ -1849,6 +1849,8 @@
       const colors = getEffectiveColors();
       const inkColor = colors.ink, redColor = colors.red, ruleColor = colors.rule;
       const noteColor = colors.note, meipiColor = colors.meipi, mouthColor = colors.mouth, earColor = colors.ear;
+      const properLineColor = isIndigo ? '#e6c675' : '#9e2a2b';
+      const waveColor = isIndigo ? '#e6c675' : '#991b1b';
       const noteScaleRatio = (Number(state.noteFontScale) || 100) / 100;
       const noteFontCss = state.noteFontFamily || state.fontFamily;
       const noFrame = state.borderStyle === 'none';
@@ -1887,11 +1889,19 @@
               ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
               if (cell.isInkBlock) ctx.fillRect(colCenterX - baseFontSize * 0.36, cellCenterY - baseFontSize * 0.38, baseFontSize * 0.72, baseFontSize * 0.76);
               else ctx.fillText(cell.char, colCenterX, cellCenterY);
-              if (state.showProperLine && cell.proper) { ctx.strokeStyle = redColor; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(colLeftX + 4, cellTopY + 2); ctx.lineTo(colLeftX + 4, cellTopY + cellH - 2); ctx.stroke(); }
+              if (state.showProperLine && cell.proper) { ctx.strokeStyle = properLineColor; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(colLeftX + 1, cellTopY); ctx.lineTo(colLeftX + 1, cellTopY + cellH); ctx.stroke(); }
               if (state.showProperLine && cell.bookTitle) {
-                ctx.strokeStyle = redColor; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(colLeftX + 4, cellTopY + 2);
-                ctx.quadraticCurveTo(colLeftX + 1, cellTopY + cellH * 0.25, colLeftX + 4, cellTopY + cellH * 0.5);
-                ctx.quadraticCurveTo(colLeftX + 7, cellTopY + cellH * 0.75, colLeftX + 4, cellTopY + cellH - 2); ctx.stroke();
+                // 书名号波浪线：与预览 .book-title-wave 平铺波形一致（左缘每段一个波形单元）
+                const segH = cellH / 3.5, xw = colLeftX + 2;
+                ctx.strokeStyle = waveColor; ctx.lineWidth = 1.4;
+                for (let s = 0; s < 4; s++) {
+                  const y = cellTopY + s * segH;
+                  ctx.beginPath();
+                  ctx.moveTo(xw + 3, y);
+                  ctx.quadraticCurveTo(xw, y + segH * 0.25, xw + 3, y + segH * 0.5);
+                  ctx.quadraticCurveTo(xw + 4, y + segH * 0.75, xw + 1, y + segH);
+                  ctx.stroke();
+                }
               }
               if (cell.judou && state.judou !== 'hidden') {
                 ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor;
@@ -1908,6 +1918,21 @@
                 const lineCenterY = cellTopY + cellH * (li + 0.5) / lines.length;
                 ctx.fillStyle = noteColor; ctx.font = `${fontWeight} ${smallFont}px ${noteFontCss}`;
                 items.forEach((item, idx) => {
+                  // 夹注小字的专名/书名标记线：与预览一致，绘于各小字槽位左缘
+                  const slotLeft = colLeftX + colW * (1 - (idx + 1) / items.length);
+                  if (state.showProperLine && item.proper) { ctx.strokeStyle = properLineColor; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(slotLeft + 1, cellTopY); ctx.lineTo(slotLeft + 1, cellTopY + cellH); ctx.stroke(); }
+                  if (state.showProperLine && item.bookTitle) {
+                    const segH = cellH / 3.5, xw = slotLeft + 2;
+                    ctx.strokeStyle = waveColor; ctx.lineWidth = 1.2;
+                    for (let s = 0; s < 4; s++) {
+                      const y = cellTopY + s * segH;
+                      ctx.beginPath();
+                      ctx.moveTo(xw + 2.5, y);
+                      ctx.quadraticCurveTo(xw, y + segH * 0.25, xw + 2.5, y + segH * 0.5);
+                      ctx.quadraticCurveTo(xw + 3.5, y + segH * 0.75, xw + 1, y + segH);
+                      ctx.stroke();
+                    }
+                  }
                   ctx.fillText(item.char, colLeftX + colW * (1 - (idx + 0.5) / items.length), lineCenterY);
                 });
                 items.forEach((item, idx) => {
