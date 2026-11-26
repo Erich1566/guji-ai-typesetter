@@ -1409,11 +1409,20 @@
             };
             while (ptr < smallItems.length) {
               ensureCellSpace();
+              const remainingItems = smallItems.length - ptr;
+              const remainingLines = Math.ceil(remainingItems / notePerRow);
               const availLines = (rows - currentCol.cells.length) * linesPerCell - pending.length;
-              const segLines = Math.min(availLines, smallItems.length - ptr);
-              if (segLines < notePerRow) { flushPending(); pushCurrentCol(true); continue; }
+              if (availLines < 1) { flushPending(); pushCurrentCol(true); continue; }
+              if (remainingItems < notePerRow) {
+                // 末尾不足一行宽度的残余字：并入一行后结束（避免无限空列）
+                flushPending();
+                pending.push(makeLine(smallItems.slice(ptr)));
+                flushPending();
+                break;
+              }
+              const segLines = Math.min(availLines, remainingLines);
               if (state.noteFlow === 'column_split') {
-                const chunk = smallItems.slice(ptr, ptr + segLines);
+                const chunk = smallItems.slice(ptr, ptr + segLines * notePerRow);
                 const perSubCol = Math.ceil(chunk.length / notePerRow);
                 for (let r = 0; r < segLines; r++) {
                   const lineItems = [];
@@ -1421,9 +1430,9 @@
                   pending.push(makeLine(lineItems));
                   if (pending.length >= linesPerCell) flushPending();
                 }
-                ptr += segLines;
+                ptr += chunk.length;
               } else {
-                for (let r = 0; r < segLines; r++) {
+                for (let r = 0; r < segLines && ptr < smallItems.length; r++) {
                   pending.push(makeLine(smallItems.slice(ptr, ptr + notePerRow)));
                   ptr += notePerRow;
                   if (pending.length >= linesPerCell) flushPending();
@@ -1435,23 +1444,33 @@
           }
 
           if ('。！？；'.includes(ch)) {
-            if (!hidePunct) {
+              if (!hidePunct) {
                 if (inlinePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '。', isPunctCell: true }); }
                 else if (currentCol.cells.length > 0) {
                   const prev = currentCol.cells[currentCol.cells.length - 1];
-                  if (prev.type === 'main') prev.judou = '。'; else if (prev.type === 'dual') { if (prev.dualChars) { const lastN = prev.dualChars[prev.dualChars.length - 1]; if (lastN) lastN.judou = '。'; } else prev.leftJudou = '。'; }
+                  if (prev.type === 'main') prev.judou = '。';
+                  else if (prev.type === 'dual') {
+                    if (prev.lines) { const ln = prev.lines[prev.lines.length - 1]; const it = ln[ln.length - 1]; if (it) it.judou = '。'; }
+                    else if (prev.dualChars) { const lastN = prev.dualChars[prev.dualChars.length - 1]; if (lastN) lastN.judou = '。'; }
+                    else prev.leftJudou = '。';
+                  }
                 }
-            }
+              }
             i++; continue;
           }
           if ('，、：'.includes(ch)) {
-            if (!hidePunct) {
+              if (!hidePunct) {
                 if (inlinePunct) { ensureCellSpace(); currentCol.cells.push({ type: 'main', char: '、', isPunctCell: true }); }
                 else if (currentCol.cells.length > 0) {
                   const prev = currentCol.cells[currentCol.cells.length - 1];
-                  if (prev.type === 'main') prev.judou = '、'; else if (prev.type === 'dual') { if (prev.dualChars) { const lastD = prev.dualChars[prev.dualChars.length - 1]; if (lastD) lastD.judou = '、'; } else prev.leftJudou = '、'; }
+                  if (prev.type === 'main') prev.judou = '、';
+                  else if (prev.type === 'dual') {
+                    if (prev.lines) { const lnD = prev.lines[prev.lines.length - 1]; const itD = lnD[lnD.length - 1]; if (itD) itD.judou = '、'; }
+                    else if (prev.dualChars) { const lastD = prev.dualChars[prev.dualChars.length - 1]; if (lastD) lastD.judou = '、'; }
+                    else prev.leftJudou = '、';
+                  }
                 }
-            }
+              }
             i++; continue;
           }
 
