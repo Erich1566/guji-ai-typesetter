@@ -666,6 +666,29 @@
               <input id="chkHalfTitleVolume" type="checkbox" checked class="accent-amber-800 rounded" /><span>半叶书名卷名</span>
             </label>
           </div>
+          <div class="pt-1.5 grid grid-cols-3 gap-2 text-[11px]" title="半叶导出页码样式（需勾选「半叶页码」）">
+            <div>
+              <label for="selectHalfPageNoStyle" class="block text-stone-600 mb-0.5">页码数字</label>
+              <select id="selectHalfPageNoStyle" class="w-full bg-stone-50 border border-stone-300 rounded px-1.5 py-1 text-xs">
+                <option value="chinese" selected>中文数字（一一〇）</option>
+                <option value="arabic">阿拉伯数字（110）</option>
+              </select>
+            </div>
+            <div>
+              <label for="selectHalfPageNoPos" class="block text-stone-600 mb-0.5">页码位置</label>
+              <select id="selectHalfPageNoPos" class="w-full bg-stone-50 border border-stone-300 rounded px-1.5 py-1 text-xs">
+                <option value="bottom" selected>页底外侧</option>
+                <option value="banxin">半叶版心内</option>
+              </select>
+            </div>
+            <div>
+              <label for="selectHalfPageNoFlow" class="block text-stone-600 mb-0.5">页码排布</label>
+              <select id="selectHalfPageNoFlow" class="w-full bg-stone-50 border border-stone-300 rounded px-1.5 py-1 text-xs">
+                <option value="horizontal" selected>横排</option>
+                <option value="vertical">竖排</option>
+              </select>
+            </div>
+          </div>
 
           <div class="pt-2.5 border-t border-stone-200/80">
             <div class="flex items-center justify-between mb-1.5">
@@ -1233,6 +1256,7 @@
       textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '',
       noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '', noteLetterSpacing: 100,
       halfPageNo: true, halfTitleVolume: true,
+      halfPageNoStyle: 'chinese', halfPageNoPos: 'bottom', halfPageNoFlow: 'horizontal',
       showEar: true,
       showProperLine: true,
       showSeal: true,
@@ -1245,6 +1269,12 @@
       leaves: [],
       detectedVolumes: []
     };
+
+    // 逐位中文数字（古籍叶码式）：110 → 一一〇
+    function toChineseDigits(num) {
+      const digits = '〇一二三四五六七八九';
+      return String(num).split('').map((d) => digits[Number(d)] || '〇').join('');
+    }
 
     function toChineseNum(num) {
       if (num <= 0) return '零';
@@ -1968,9 +1998,33 @@
         // 现代影印线装阅读辅助：半叶页码（页底外侧）与书名·卷名（页底居中），勾选后绘制
         if (pageNo != null) {
           if (state.halfPageNo) {
-            ctx.fillStyle = inkColor; ctx.font = `600 15px ${state.fontFamily}`;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(String(pageNo), mode === 'right_half' ? outW - padX / 2 : padX / 2, padTop + bodyH + 24);
+            const isChinese = state.halfPageNoStyle !== 'arabic';
+            const vertical = state.halfPageNoFlow === 'vertical';
+            const inBanxin = state.halfPageNoPos === 'banxin';
+            const text = isChinese ? toChineseDigits(pageNo) : String(pageNo);
+            const chars = text.split('');
+            ctx.fillStyle = inkColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const outerX = mode === 'right_half' ? outW - padX / 2 : padX / 2;
+            if (inBanxin) {
+              // 半叶版心内：版心半宽中线，纵排自下而上叠字，横排居中于地脚上方
+              const cx = mode === 'right_half' ? padX + banxinW / 4 : padX + halfW + banxinW / 4;
+              if (vertical) {
+                ctx.font = `600 13px ${state.fontFamily}`;
+                const yBase = padTop + bodyH - 16;
+                chars.forEach((ch, i) => ctx.fillText(ch, cx, yBase - (chars.length - 1 - i) * 15));
+              } else {
+                ctx.font = `600 12px ${state.fontFamily}`;
+                ctx.fillText(text, cx, padTop + bodyH - 12);
+              }
+            } else if (vertical) {
+              // 页底外侧竖排：外边距竖条内自上而下叠字
+              ctx.font = `600 12px ${state.fontFamily}`;
+              const y0 = padTop + bodyH + 7;
+              chars.forEach((ch, i) => ctx.fillText(ch, outerX, y0 + i * 15));
+            } else {
+              ctx.font = `600 15px ${state.fontFamily}`;
+              ctx.fillText(text, outerX, padTop + bodyH + 23);
+            }
           }
           if (state.halfTitleVolume) {
             ctx.fillStyle = inkColor; ctx.font = `500 13px ${state.fontFamily}`;
@@ -2529,6 +2583,9 @@
       });
       [['chkShowEar', 'showEar'], ['chkShowProperLine', 'showProperLine'], ['chkShowSeal', 'showSeal'], ['chkShowVolumeHeader', 'showVolumeHeader'], ['chkHalfPageNo', 'halfPageNo'], ['chkHalfTitleVolume', 'halfTitleVolume']].forEach(([id, key]) => {
         document.getElementById(id).addEventListener('change', (e) => { state[key] = e.target.checked; renderCurrentLeaf(); });
+      });
+      [['selectHalfPageNoStyle', 'halfPageNoStyle'], ['selectHalfPageNoPos', 'halfPageNoPos'], ['selectHalfPageNoFlow', 'halfPageNoFlow']].forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('change', (e) => { state[key] = e.target.value; renderCurrentLeaf(); });
       });
 
       document.querySelectorAll('.markup-btn').forEach((btn) => {
