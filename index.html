@@ -145,10 +145,10 @@
 
       <!-- Quick Action Buttons -->
       <div class="flex items-center gap-2 flex-wrap">
-        <button id="btnExportPdf" type="button" class="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#9e2a2b] hover:bg-[#822021] text-white border border-amber-400/40 transition flex items-center gap-1.5 shadow">
+        <button id="btnExportPdf" type="button" title="整书 PDF：按当前版面视图导出（筒子页全叶 / 单看右半叶 / 单看左半叶）" class="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#9e2a2b] hover:bg-[#822021] text-white border border-amber-400/40 transition flex items-center gap-1.5 shadow">
           <span>📕</span><span>导出整书 PDF</span>
         </button>
-        <button id="btnExportPng" type="button" class="px-3 py-1.5 rounded-md text-xs font-medium bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-500/40 transition flex items-center gap-1.5 shadow-sm">
+        <button id="btnExportPng" type="button" title="书叶 PNG：按当前版面视图导出（筒子页全叶 / 单看右半叶 / 单看左半叶）" class="px-3 py-1.5 rounded-md text-xs font-medium bg-amber-700 hover:bg-amber-600 text-amber-50 border border-amber-500/40 transition flex items-center gap-1.5 shadow-sm">
           <span>🖼️</span><span>导出书叶 PNG</span>
         </button>
         <button id="btnExportProject" type="button" class="px-3 py-1.5 rounded-md text-xs font-medium bg-stone-800 hover:bg-stone-700 text-amber-100 border border-amber-800/60 transition flex items-center gap-1.5" title="导出 .guji.json 工程文件（与 Agent Skill 互通）">
@@ -1815,18 +1815,27 @@
       ctx.restore();
     }
 
-    function drawLeafOnCanvas(leaf, canvas) {
+    // 导出方式跟随当前版面视图：筒子页全叶 / 单看右半叶 / 单看左半叶
+    function getLeafExportMode() {
+      return (state.viewMode === 'right_half' || state.viewMode === 'left_half') ? state.viewMode : 'spread';
+    }
+
+    function drawLeafOnCanvas(leaf, canvas, modeOverride = null) {
+      const mode = modeOverride || getLeafExportMode();
+      const isHalf = mode === 'right_half' || mode === 'left_half';
       const m = getCanvasMetrics();
-      const { cols, rows, colW, cellH, bodyH, banxinW, halfW, totalBodyW, padX, padTop, fullW, fullH } = m;
+      const { cols, rows, colW, cellH, bodyH, banxinW, halfW, totalBodyW, padX, padTop, fullH } = m;
+      const bodyW = isHalf ? halfW : totalBodyW;
+      const outW = padX * 2 + bodyW;
       const isIndigo = state.paper === 'paper-indigo';
       const fontScale = (Number(state.fontScale) || 100) / 100;
       const fontWeight = state.fontWeight || '600';
       const ctx = canvas.getContext('2d'); const scale = 2;
-      canvas.width = fullW * scale; canvas.height = fullH * scale;
+      canvas.width = outW * scale; canvas.height = fullH * scale;
       ctx.save(); ctx.scale(scale, scale);
 
       const paperColors = { 'paper-bamboo': '#f3e8d2', 'paper-xuan': '#faf6ee', 'paper-hemp': '#e6d3b3', 'paper-indigo': '#1b2838', 'paper-white': '#ffffff' };
-      ctx.fillStyle = paperColors[state.paper] || '#f3e8d2'; ctx.fillRect(0, 0, fullW, fullH);
+      ctx.fillStyle = paperColors[state.paper] || '#f3e8d2'; ctx.fillRect(0, 0, outW, fullH);
       const colors = getEffectiveColors();
       const inkColor = colors.ink, redColor = colors.red, ruleColor = colors.rule;
       const noteColor = colors.note, meipiColor = colors.meipi, mouthColor = colors.mouth, earColor = colors.ear;
@@ -1835,13 +1844,14 @@
       const noFrame = state.borderStyle === 'none';
       if (!noFrame) {
         ctx.strokeStyle = colors.frame; ctx.lineWidth = state.borderStyle === 'all_single' ? 2 : 4.5;
-        ctx.strokeRect(padX - 5, padTop - 5, totalBodyW + 10, bodyH + 10);
-        ctx.lineWidth = 1.4; ctx.strokeRect(padX, padTop, totalBodyW, bodyH);
+        ctx.strokeRect(padX - 5, padTop - 5, bodyW + 10, bodyH + 10);
+        ctx.lineWidth = 1.4; ctx.strokeRect(padX, padTop, bodyW, bodyH);
       }
 
       const earText = leaf.earTitle || state.earTitle;
       if (state.showEar && earText && !noFrame) {
-        const earX = padX + totalBodyW + 5, earY = padTop + 20, earW = 28, earH = 88;
+        const earX = isHalf ? (mode === 'right_half' ? padX + halfW + 5 : padX - 38) : padX + totalBodyW + 5;
+        const earY = padTop + 20, earW = 28, earH = 88;
         ctx.lineWidth = 2; ctx.strokeStyle = colors.frame; ctx.strokeRect(earX, earY, earW, earH);
         ctx.fillStyle = earColor; ctx.font = `bold 13px ${state.fontFamily}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         earText.slice(0, 4).split('').forEach((ch, idx) => ctx.fillText(ch, earX + earW / 2, earY + 16 + idx * 18));
@@ -1908,6 +1918,11 @@
         }
       }
 
+      if (isHalf) {
+        drawHalfLeaf(mode === 'right_half' ? leaf.rightCols : leaf.leftCols, padX, mode === 'right_half');
+        ctx.restore();
+        return;
+      }
       drawHalfLeaf(leaf.leftCols, padX, false);
       const bx = padX + halfW;
       if (!noFrame) { ctx.strokeStyle = colors.frame; ctx.lineWidth = 1.4; ctx.strokeRect(bx, padTop, banxinW, bodyH); }
@@ -1938,10 +1953,12 @@
         showToast('已导出自定义线装封面与牌记 PNG', '🖼️'); return;
       }
       const leaf = state.leaves[state.currentLeafIdx] || state.leaves[0];
-      drawLeafOnCanvas(leaf, canvas);
-      const link = document.createElement('a'); link.download = `${state.bookTitle}_${leaf.volume}_第${toChineseNum(leaf.volLeafNumber)}叶.png`; link.href = canvas.toDataURL('image/png');
+      const mode = getLeafExportMode();
+      drawLeafOnCanvas(leaf, canvas, mode);
+      const modeName = mode === 'right_half' ? '右半叶' : mode === 'left_half' ? '左半叶' : '筒子页全叶';
+      const link = document.createElement('a'); link.download = `${state.bookTitle}_${leaf.volume}_第${toChineseNum(leaf.volLeafNumber)}叶_${modeName}.png`; link.href = canvas.toDataURL('image/png');
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
-      showToast(`已导出高清雕版书叶 PNG（${leaf.volume}·第${toChineseNum(leaf.volLeafNumber)}叶）`, '🖼️');
+      showToast(`已导出${modeName}书叶 PNG（${leaf.volume}·第${toChineseNum(leaf.volLeafNumber)}叶）`, '🖼️');
     }
 
     async function exportFullBookToPdf() {
@@ -1957,6 +1974,9 @@
       modal.classList.remove('hidden');
       try {
         const m = getCanvasMetrics();
+        const leafMode = getLeafExportMode();
+        const leafModeName = leafMode === 'right_half' ? '右半叶' : leafMode === 'left_half' ? '左半叶' : '筒子页全叶';
+        const leafOutW = m.padX * 2 + (leafMode === 'spread' ? m.totalBodyW : m.halfW);
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({ orientation: m.fullW >= m.fullH ? 'landscape' : 'portrait', unit: 'pt', format: [m.fullW, m.fullH] });
         const canvas = document.getElementById('exportCanvas');
@@ -1973,16 +1993,17 @@
         }
         for (let idx = 0; idx < totalLeaves; idx++) {
           const lf = state.leaves[idx];
-          stepEl.textContent = `正在雕版渲染正文书叶：${lf.volume} 第${toChineseNum(lf.volLeafNumber)}叶 (${idx + 1} / ${totalLeaves})...`;
+          stepEl.textContent = `正在雕版渲染正文书叶（${leafModeName}）：${lf.volume} 第${toChineseNum(lf.volLeafNumber)}叶 (${idx + 1} / ${totalLeaves})...`;
           barEl.style.width = `${Math.round(((doneSteps + 1) / totalSteps) * 100)}%`;
           await new Promise((r) => setTimeout(r, 20));
-          if (pageAdded) pdf.addPage([m.fullW, m.fullH], m.fullW >= m.fullH ? 'landscape' : 'portrait');
-          drawLeafOnCanvas(lf, canvas);
-          pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, m.fullW, m.fullH);
+          if (pageAdded) pdf.addPage([leafOutW, m.fullH], leafOutW >= m.fullH ? 'landscape' : 'portrait');
+          drawLeafOnCanvas(lf, canvas, leafMode);
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, leafOutW, m.fullH);
           pageAdded = true; doneSteps++;
         }
-        pdf.save(`${state.bookTitle}_整书古籍重排(共${totalLeaves}叶).pdf`);
-        showToast(`整书 PDF 导出完成（含封面牌记及正文共 ${totalLeaves} 叶）`, '📕');
+        const modeSuffix = leafMode === 'spread' ? '' : `_${leafModeName}`;
+        pdf.save(`${state.bookTitle}_整书古籍重排(${leafModeName}·共${totalLeaves}叶)${modeSuffix}.pdf`);
+        showToast(`整书 PDF 导出完成（${leafModeName} · 含封面牌记及正文共 ${totalLeaves} 叶）`, '📕');
       } catch (err) {
         showToast('PDF 合成遇到问题，已启动浏览器原生打印导出', '🖨️');
       } finally {
