@@ -662,6 +662,16 @@
             <label class="inline-flex items-center gap-1.5 cursor-pointer" title="夹注起首的「注/疏/集解/正义」等标签字加底色，便于与注文内容区分">
               <input id="chkNoteLabelBg" type="checkbox" checked class="accent-amber-800 rounded" /><span>夹注标签字背景</span>
             </label>
+            <span class="text-stone-600">标签底色块形状</span>
+            <select id="selectNoteLabelShape" class="bg-stone-50 border border-stone-300 rounded px-1 py-0.5 text-xs">
+              <option value="rounded" selected>圆角</option>
+              <option value="rect">矩形</option>
+              <option value="ellipse">椭圆</option>
+            </select>
+            <span class="text-stone-600">底色</span>
+            <input id="inputNoteLabelBgColor" type="color" value="#9e2a2b" class="w-7 h-6 rounded border border-stone-300 cursor-pointer bg-white p-0.5" />
+            <span class="text-stone-600">文字色</span>
+            <input id="inputNoteLabelTextColor" type="color" value="#faf6ee" class="w-7 h-6 rounded border border-stone-300 cursor-pointer bg-white p-0.5" />
           </div>
 
           <div class="pt-2.5 border-t border-stone-200/80">
@@ -1229,6 +1239,7 @@
       noteFlow: 'column_split',
       textColor: '', noteColor: '', meipiColor: '', frameColor: '', ruleColor: '', mouthColor: '', earColor: '',
       noteFontScale: 100, noteCharsPerRow: 2, noteFontFamily: '', noteLetterSpacing: 100, noteLabelBg: true,
+      noteLabelBgColor: '#9e2a2b', noteLabelTextColor: '#faf6ee', noteLabelShape: 'rounded',
       showEar: true,
       showProperLine: true,
       showSeal: true,
@@ -1667,11 +1678,24 @@
             // 防溢出：小字字号上限 = 单元格高÷行数×0.78 与「列宽÷每行字数×0.82」取小
             const noteFontSizePx = Math.min(cellBox.cellFontPx * 0.56 * noteScaleRatio, (cellBox.cellHpx / lines.length) * 0.78, (cellBox.colWidthPx / charsPerLine) * 0.82);
               const linesHtml = lines.map((items) => {
-                const lineHtml = items.map((item) => {
-                  const iJudou = item.judou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${item.judou}</span>` : '';
-                  const iProper = state.showProperLine && item.proper ? `border-left: 1px solid ${properLineColor};` : '';
-                  const iBg = item.labelTag && state.noteLabelBg ? `background:${isIndigo ? 'rgba(230,198,117,0.24)' : 'rgba(158,42,43,0.13)'};border-radius:1px;` : '';
-                  return `<div class="relative flex-1 h-full flex items-center justify-center leading-none" style="font-size:${noteFontSizePx.toFixed(2)}px; ${iProper}"><span style="${iBg}">${item.char}</span>${iJudou}</div>`;
+                // 相邻同标记的字符合并为同一连续底色块（不逐字断开）
+                const runs = [];
+                let curRun = null;
+                items.forEach((item) => {
+                  const isLabel = !!(item.labelTag && state.noteLabelBg);
+                  if (!curRun || curRun.isLabel !== isLabel) { curRun = { isLabel, items: [] }; runs.push(curRun); }
+                  curRun.items.push(item);
+                });
+                const lineHtml = runs.map((run) => {
+                  const radius = state.noteLabelShape === 'rect' ? '0' : state.noteLabelShape === 'ellipse' ? '50%' : '3px';
+                  const runStyle = run.isLabel ? `background:${state.noteLabelBgColor};color:${state.noteLabelTextColor};border-radius:${radius};` : '';
+                  const runInner = run.items.map((item) => {
+                    const iJudou = item.judou ? `<span class="absolute right-0 bottom-[-2px] leading-none font-bold pointer-events-none" style="color:${judouColor}; font-size:0.65em;">${item.judou}</span>` : '';
+                    const iProper = state.showProperLine && item.proper ? `border-left: 1px solid ${properLineColor};` : '';
+                    const iBook = state.showProperLine && item.bookTitle ? 'book-title-wave' : '';
+                    return `<div class="relative flex-1 h-full flex items-center justify-center leading-none ${iBook}" style="${iProper}"><span>${item.char}</span>${iJudou}</div>`;
+                  }).join('');
+                  return `<div class="relative h-full flex flex-row-reverse items-center justify-around px-[1px]" style="flex:${run.items.length} 1 0%;${runStyle}">${runInner}</div>`;
                 }).join('');
                 return `<div class="w-full flex-1 flex flex-row-reverse items-center justify-around px-[1px]">${lineHtml}</div>`;
               }).join('');
@@ -1925,29 +1949,47 @@
               ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
               lines.forEach((items, li) => {
                 const lineCenterY = cellTopY + cellH * (li + 0.5) / lines.length;
-                ctx.fillStyle = noteColor; ctx.font = `${fontWeight} ${smallFont}px ${noteFontCss}`;
+                // 相邻同标记的字符合并为同一连续底色块（不逐字断开）
+                const runs = [];
+                let curRun = null;
                 items.forEach((item, idx) => {
-                  // 夹注小字的专名/书名标记线：与预览一致，绘于各小字槽位左缘
-                  const slotLeft = colLeftX + colW * (1 - (idx + 1) / items.length);
-                  if (state.showProperLine && item.proper) { ctx.strokeStyle = properLineColor; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(slotLeft + 1, cellTopY); ctx.lineTo(slotLeft + 1, cellTopY + cellH); ctx.stroke(); }
-                  if (state.showProperLine && item.bookTitle) {
-                    const segH = cellH / 3.5, xw = slotLeft + 2;
-                    ctx.strokeStyle = waveColor; ctx.lineWidth = 1.2;
-                    for (let s = 0; s < 4; s++) {
-                      const y = cellTopY + s * segH;
-                      ctx.beginPath();
-                      ctx.moveTo(xw + 2.5, y);
-                      ctx.quadraticCurveTo(xw, y + segH * 0.25, xw + 2.5, y + segH * 0.5);
-                      ctx.quadraticCurveTo(xw + 3.5, y + segH * 0.75, xw + 1, y + segH);
-                      ctx.stroke();
-                    }
-                  }
-                  const charX = colLeftX + colW * (1 - (idx + 0.5) / items.length);
-                  if (item.labelTag && state.noteLabelBg) { ctx.fillStyle = isIndigo ? 'rgba(230,198,117,0.25)' : 'rgba(158,42,43,0.13)'; ctx.fillRect(charX - smallFont * 0.62, lineCenterY - smallFont * 0.62, smallFont * 1.24, smallFont * 1.24); ctx.fillStyle = noteColor; }
-                  ctx.fillText(item.char, charX, lineCenterY);
+                  const isLabel = !!(item.labelTag && state.noteLabelBg);
+                  if (!curRun || curRun.isLabel !== isLabel) { curRun = { isLabel, items: [] }; runs.push(curRun); }
+                  curRun.items.push({ item, idx });
                 });
-                items.forEach((item, idx) => {
-                  if (item.judou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 9px ${state.fontFamily}`; ctx.fillText(item.judou, colLeftX + colW * (1 - idx / items.length) - 3, lineCenterY + smallFont * 0.5 + 2); }
+                runs.forEach((run) => {
+                  const nSlots = items.length;
+                  const firstIdx = run.items[0].idx, lastIdx = run.items[run.items.length - 1].idx;
+                  const runRight = colLeftX + colW * (1 - firstIdx / nSlots);
+                  const runLeft = colLeftX + colW * (1 - (lastIdx + 1) / nSlots);
+                  if (run.isLabel) {
+                    // 连续标签底色块：形状（圆角/矩形/椭圆）与颜色可自定义，整体绘制不逐字断开
+                    const bx = runLeft + 0.5, bw = runRight - runLeft - 1, by = cellTopY + 0.5, bh = cellH - 1;
+                    ctx.fillStyle = state.noteLabelBgColor;
+                    if (state.noteLabelShape === 'ellipse') { ctx.beginPath(); ctx.ellipse(bx + bw / 2, by + bh / 2, Math.max(1, bw / 2), Math.max(1, bh / 2), 0, 0, Math.PI * 2); ctx.fill(); }
+                    else if (state.noteLabelShape === 'rounded') { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, Math.min(4, bh / 2)); else ctx.rect(bx, by, bw, bh); ctx.fill(); }
+                    else ctx.fillRect(bx, by, bw, bh);
+                  }
+                  run.items.forEach(({ item, idx }) => {
+                    const slotLeft = colLeftX + colW * (1 - (idx + 1) / items.length);
+                    ctx.fillStyle = run.isLabel ? state.noteLabelTextColor : noteColor;
+                    ctx.font = `${fontWeight} ${smallFont}px ${noteFontCss}`;
+                    if (state.showProperLine && item.proper) { ctx.strokeStyle = properLineColor; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(slotLeft + 1, cellTopY); ctx.lineTo(slotLeft + 1, cellTopY + cellH); ctx.stroke(); }
+                    if (state.showProperLine && item.bookTitle) {
+                      const segH = cellH / 3.5, xw = slotLeft + 2;
+                      ctx.strokeStyle = waveColor; ctx.lineWidth = 1.2;
+                      for (let s = 0; s < 4; s++) {
+                        const y = cellTopY + s * segH;
+                        ctx.beginPath();
+                        ctx.moveTo(xw + 2.5, y);
+                        ctx.quadraticCurveTo(xw, y + segH * 0.25, xw + 2.5, y + segH * 0.5);
+                        ctx.quadraticCurveTo(xw + 3.5, y + segH * 0.75, xw + 1, y + segH);
+                        ctx.stroke();
+                      }
+                    }
+                    ctx.fillText(item.char, colLeftX + colW * (1 - (idx + 0.5) / items.length), lineCenterY);
+                    if (item.judou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 9px ${state.fontFamily}`; ctx.fillText(item.judou, colLeftX + colW * (1 - idx / items.length) - 3, lineCenterY + smallFont * 0.5 + 2); }
+                  });
                 });
               });
             }
