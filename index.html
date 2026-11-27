@@ -1041,6 +1041,7 @@
   <canvas id="exportCanvas" class="hidden"></canvas>
 
   <script>
+    window.onerror = function (m, s, l, c) { document.title = 'ERR: ' + m + ' @' + (s || '?').split('/').pop() + ':' + (l || '?') + ':' + (c || '?'); };
     const CLASSICAL_BOOKS = [
       {
         id: 'dongpo_shi',
@@ -1946,6 +1947,9 @@
               const charsPerLine = Math.max(1, lines[0].length);
               // 防溢出：小字字号上限 = 列宽÷每行字数×0.82 与 格高÷行数×0.78 取小
               const smallFont = Math.min(Math.max(8, Math.floor(cellH * 0.43 * fontScale * noteScaleRatio)), Math.max(7, Math.floor(colW / charsPerLine * 0.82)), Math.max(7, Math.floor(cellH / lines.length * 0.78)));
+              // 格位级裁剪：底色块/标记线/文字严格限制在本格矩形内，绝不越过界行与版框
+              ctx.save();
+              ctx.beginPath(); ctx.rect(colLeftX + 0.5, cellTopY + 0.5, colW - 1, cellH - 1); ctx.clip();
               ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
               lines.forEach((items, li) => {
                 const lineCenterY = cellTopY + cellH * (li + 0.5) / lines.length;
@@ -1957,14 +1961,14 @@
                   if (!curRun || curRun.isLabel !== isLabel) { curRun = { isLabel, items: [] }; runs.push(curRun); }
                   curRun.items.push({ item, idx });
                 });
+                // 逐格绘制；底色块与文字严格裁剪在格位矩形内（界行/版框之外不越界）
                 runs.forEach((run) => {
                   const nSlots = items.length;
                   const firstIdx = run.items[0].idx, lastIdx = run.items[run.items.length - 1].idx;
                   const runRight = colLeftX + colW * (1 - firstIdx / nSlots);
                   const runLeft = colLeftX + colW * (1 - (lastIdx + 1) / nSlots);
                   if (run.isLabel) {
-                    // 连续标签底色块：形状（圆角/矩形/椭圆）与颜色可自定义，整体绘制不逐字断开
-                    const bx = runLeft + 0.5, bw = runRight - runLeft - 1, by = cellTopY + 0.5, bh = cellH - 1;
+                    const bx = runLeft + 1, bw = runRight - runLeft - 2, by = cellTopY + 1, bh = cellH - 2;
                     ctx.fillStyle = state.noteLabelBgColor;
                     if (state.noteLabelShape === 'ellipse') { ctx.beginPath(); ctx.ellipse(bx + bw / 2, by + bh / 2, Math.max(1, bw / 2), Math.max(1, bh / 2), 0, 0, Math.PI * 2); ctx.fill(); }
                     else if (state.noteLabelShape === 'rounded') { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, Math.min(4, bh / 2)); else ctx.rect(bx, by, bw, bh); ctx.fill(); }
@@ -1974,12 +1978,12 @@
                     const slotLeft = colLeftX + colW * (1 - (idx + 1) / items.length);
                     ctx.fillStyle = run.isLabel ? state.noteLabelTextColor : noteColor;
                     ctx.font = `${fontWeight} ${smallFont}px ${noteFontCss}`;
-                    if (state.showProperLine && item.proper) { ctx.strokeStyle = properLineColor; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(slotLeft + 1, cellTopY); ctx.lineTo(slotLeft + 1, cellTopY + cellH); ctx.stroke(); }
+                    if (state.showProperLine && item.proper) { ctx.strokeStyle = properLineColor; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(slotLeft + 1, cellTopY + 1); ctx.lineTo(slotLeft + 1, cellTopY + cellH - 1); ctx.stroke(); }
                     if (state.showProperLine && item.bookTitle) {
                       const segH = cellH / 3.5, xw = slotLeft + 2;
                       ctx.strokeStyle = waveColor; ctx.lineWidth = 1.2;
                       for (let s = 0; s < 4; s++) {
-                        const y = cellTopY + s * segH;
+                        const y = cellTopY + 1 + s * segH;
                         ctx.beginPath();
                         ctx.moveTo(xw + 2.5, y);
                         ctx.quadraticCurveTo(xw, y + segH * 0.25, xw + 2.5, y + segH * 0.5);
@@ -1987,13 +1991,13 @@
                         ctx.stroke();
                       }
                     }
-                    ctx.fillText(item.char, colLeftX + colW * (1 - (idx + 0.5) / items.length), lineCenterY);
-                    if (item.judou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 9px ${state.fontFamily}`; ctx.fillText(item.judou, colLeftX + colW * (1 - idx / items.length) - 3, lineCenterY + smallFont * 0.5 + 2); }
-                  });
+                    const charX = colLeftX + colW * (1 - (idx + 0.5) / items.length);
+                    if (item.labelTag && state.noteLabelBg) { ctx.fillStyle = state.noteLabelTextColor; }
+                    ctx.fillText(item.char, charX, lineCenterY);
+                  if (item.judou && state.judou !== 'hidden') { ctx.fillStyle = state.judou.startsWith('vermilion') ? redColor : inkColor; ctx.font = `bold 9px ${state.fontFamily}`; ctx.fillText(item.judou, colLeftX + colW * (1 - idx / items.length) - 3, lineCenterY + smallFont * 0.5 + 2); }
                 });
               });
-            }
-          });
+              ctx.restore();
         });
         if (state.showSeal && leaf.isVolStart && isRightHalf) {
           const sealX = startX + halfW - colW + 3, sealY = padTop + bodyH - 46;
@@ -2473,6 +2477,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      document.title = 'DCL-RAN';
       loadAiConfigFromStorage();
       document.getElementById('selectBookSample').innerHTML = CLASSICAL_BOOKS.map((b) => `<option value="${b.id}">《${b.title}》</option>`).join('');
       document.getElementById('selectNoteFontFamily').innerHTML += document.getElementById('selectFontFamily').innerHTML.replace(/ selected/g, '');
